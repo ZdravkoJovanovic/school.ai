@@ -7,9 +7,8 @@
   <link href="/styles.css" rel="stylesheet">
 </head>
 <body class="bg-neutral-900 text-neutral-200 min-h-screen">
-  <!-- Hauptlayout: Links leer/Info, rechts Chat -->
   <div class="flex min-h-screen">
-    <!-- Linke Fläche (70%) – bewusst minimal gehalten) -->
+    <!-- Linke Fläche (70%) -->
     <section class="w-[70%] p-8 hidden lg:block">
       <div class="max-w-xl">
         <h1 class="text-3xl font-semibold mb-3">School AI</h1>
@@ -18,42 +17,58 @@
     </section>
 
     <!-- Rechte Seite: Chat (30%) -->
-    <aside class="w-full lg:w-[30%] border-l border-neutral-700 bg-[#1E211E] flex flex-col min-h-screen">
-      <!-- Header -->
-      <header class="px-4 py-3 border-b border-neutral-700 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-          <h2 class="text-sm tracking-wide text-neutral-300">School AI Chat</h2>
-        </div>
-        <span class="text-xs text-neutral-500">Beta</span>
-      </header>
+    <aside class="w-full lg:w-[30%] bg-neutral-900 flex flex-col min-h-screen">
+      <!-- Innere Chat-Box mit Kontrast und grauen Rändern -->
+      <div class="m-3 rounded-xl ring-1 ring-neutral-700 bg-[#1E211E] flex flex-col min-h-[calc(100vh-1.5rem)]">
+        <!-- Header -->
+        <header class="px-4 py-3 border-b border-neutral-700 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <h2 class="text-sm tracking-wide text-neutral-300">School AI Chat</h2>
+          </div>
+          <span class="text-xs text-neutral-500">Beta</span>
+        </header>
 
-      <!-- Nachrichtenliste -->
-      <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        <!-- Beispielnachrichten -->
-        <div class="flex gap-3">
-          <div class="shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700"></div>
-          <div class="max-w-[80%]">
-            <div class="text-xs text-neutral-400 mb-1">School AI</div>
-            <div class="bg-neutral-800/80 ring-1 ring-neutral-700 rounded-lg p-3 text-sm leading-relaxed">
-              Willkommen! Wie kann ich dir beim Lernen helfen?
+        <!-- Nachrichtenliste -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          <!-- Beispielnachricht -->
+          <div class="flex gap-3">
+            <div class="shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700"></div>
+            <div class="max-w-[80%]">
+              <div class="text-xs text-neutral-400 mb-1">School AI</div>
+              <div class="bg-neutral-800/80 ring-1 ring-neutral-700 rounded-lg p-3 text-sm leading-relaxed">
+                Willkommen! Wie kann ich dir beim Lernen helfen?
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Eingabe -->
-      <form id="chat-form" class="border-t border-neutral-700 p-3">
-        <div class="flex items-end gap-2">
-          <textarea id="chat-input" rows="1" placeholder="Nachricht an School AI..." class="flex-1 resize-none rounded-md bg-neutral-800/70 ring-1 ring-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/60 px-3 py-2 text-sm placeholder-neutral-500 text-neutral-100"></textarea>
-          <button type="submit" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-sm">Senden</button>
-        </div>
-      </form>
+        <!-- Eingabe -->
+        <form id="chat-form" class="border-t border-neutral-700 p-3">
+          <div class="flex items-center gap-2">
+            <textarea id="chat-input" rows="1" placeholder="Nachricht an School AI..." class="flex-1 resize-none rounded-md bg-neutral-800/70 ring-1 ring-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/60 px-3 py-2 text-sm placeholder-neutral-500 text-neutral-100"></textarea>
+            <!-- Image Icon Button (ohne Funktion) -->
+            <button type="button" aria-label="Bild hochladen" class="shrink-0 p-2 rounded-md ring-1 ring-neutral-700 bg-neutral-800/60 hover:bg-neutral-800">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-5 h-5 text-neutral-200">
+                <path d="M3.75 6.75A2.25 2.25 0 016 4.5h12a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0118 19.5H6a2.25 2.25 0 01-2.25-2.25V6.75z"/>
+                <path d="M7.5 13.5l2.25-2.25a1.5 1.5 0 012.121 0L15 14.25l1.5-1.5a1.5 1.5 0 012.121 0L21 15"/>
+                <circle cx="8.75" cy="8.75" r="1.25"/>
+              </svg>
+            </button>
+            <!-- Senden Pfeil (weiß) -->
+            <button type="submit" aria-label="Senden" class="shrink-0 p-2 rounded-md bg-emerald-600 hover:bg-emerald-500">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-white">
+                <path d="M2.25 12l18-9-4.5 9 4.5 9-18-9z"/>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
     </aside>
   </div>
 
   <script>
-    // Kleines, optionales UI-Enhancement: lokale Anzeige gesendeter Nachrichten
+    // Nur UI-Demo: lokale Anzeige gesendeter Nachrichten
     const form = document.getElementById('chat-form');
     const input = document.getElementById('chat-input');
     const list = document.getElementById('chat-messages');
@@ -66,11 +81,11 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'flex gap-3 justify-end';
       wrapper.innerHTML = `
-        <div class="max-w-[80%]">
-          <div class="text-xs text-neutral-400 mb-1 text-right">Du</div>
-          <div class="bg-emerald-600/20 ring-1 ring-emerald-700/50 rounded-lg p-3 text-sm leading-relaxed text-neutral-100">${text.replace(/</g,'&lt;')}</div>
+        <div class=\"max-w-[80%]\">
+          <div class=\"text-xs text-neutral-400 mb-1 text-right\">Du</div>
+          <div class=\"bg-emerald-600/20 ring-1 ring-emerald-700/50 rounded-lg p-3 text-sm leading-relaxed text-neutral-100\">${text.replace(/</g,'&lt;')}</div>
         </div>
-        <div class="shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700"></div>
+        <div class=\"shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700\"></div>
       `;
       list.appendChild(wrapper);
       list.scrollTop = list.scrollHeight;
