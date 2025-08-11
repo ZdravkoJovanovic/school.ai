@@ -130,20 +130,19 @@ Schema:
 }
 Strokes:
 - {"type":"text","position":[x,y],"text":"…","size":0.045,"color":"#ffffff"}
-- {"type":"path","points":[[x,y],…],"width":0.003,"color":"#ffffff"} (für Pfeile/Unterstreichungen/Rahmen)
-- {"type":"circle", ...} (nur wenn nötig)
 Vorgaben:
-- KEINE Koordinatenachsen, KEINE echten Diagramm-Gitter – nur Textblöcke, Pfeile, simple Figuren.
-- Stil: digitales Notizblatt wie auf A4: große handschriftartige Titel, darunter kurze Erklärsätze, einfache Pfeile, kleine Formeln.
-- Fläche maximal nutzen: Inhalte linksbündig, oben anfangen, bis ~80–90% Breite; kleine Ränder.
-- Schrittweise aufbauen: Schritt 1 (Definition/Idee) → Schritt 2 (Regel/Herleitung) → Schritt 3 (Mini‑Beispiel) → Schritt 4 (Hinweis/Fehlerquelle). Max ~400 Punkte insgesamt.
+- Nur TEXT-Strokes erzeugen; keine Pfade, keine Kreise, keine Deko‑Linien.
+- KEINE Koordinatenachsen/Gitter.
+- Stil: digitales Notizblatt; klare Abschnittstitel, darunter kurze, sehr verständliche Bullet‑Erklärungen und Formeln.
+- Fläche maximal nutzen: linksbündig, oben starten, bis ~92% Breite; kleine Ränder; ausreichend Zeilenabstand.
+- Struktur: 1) Idee/Definition, 2) Regeln/Formeln, 3) Schritt‑für‑Schritt mini Herleitung, 4) Mini‑Beispiel mit konkreten Zahlen (Ende der Seite), 5) typische Fehler.
 - Farbe standard #ffffff. Nur JSON ohne Markdown.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,
       messages: [
         { role: 'system', content: system },
-        { role: 'user', content: `Skizziere didaktisch: ${prompt}` },
+        { role: 'user', content: `Skizziere didaktisch (nutze nur Text, fülle die Fläche mit maximal vielen, leicht verständlichen Punkten, beende mit einem kurzen Zahlenbeispiel): ${prompt}` },
       ],
     });
 

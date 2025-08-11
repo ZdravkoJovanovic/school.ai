@@ -193,18 +193,20 @@
         return {minX, minY, maxX, maxY};
       }
 
-      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.03};
+      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.02};
       const noteScale = 0.35; // noch kleiner → ca. doppelt so viel Inhalt wie zuvor
       function nx(x){ const w=transform.maxX-transform.minX||1; return ((x-transform.minX)/w)*(1-2*transform.margin)+transform.margin; }
       function ny(y){ const h=transform.maxY-transform.minY||1; return ((y-transform.minY)/h)*(1-2*transform.margin)+transform.margin; }
       function toXY([nxv, nyv]){ const dpr=window.devicePixelRatio||1; return [nx(nxv)*canvas.width/dpr, ny(nyv)*canvas.height/dpr]; }
 
       function renderSketch(sketch){
-        const flat = Array.isArray(sketch?.strokes)
+        const flatAll = Array.isArray(sketch?.strokes)
           ? sketch.strokes
           : Array.isArray(sketch?.layers)
             ? sketch.layers.flatMap((l)=> Array.isArray(l.strokes)? l.strokes : [])
             : [];
+        // Nur Text-Strokes zulassen, alle Pfade/Kreise entfernen
+        const flat = flatAll.filter((s)=> s && s.type === 'text');
         if (!flat.length) return;
         transform = {...transform, ...computeBounds(flat)};
         ctx.save();
@@ -266,9 +268,7 @@
           lastTextBottom = yy;
         }
         for (const s of flat){
-          if (s.type === 'path') drawPath(s.points, s.width, s.color);
-          else if (s.type === 'circle') drawCircle(s.center, s.radius, s.width, s.color);
-          else if (s.type === 'text') drawWrappedText(s.position, s.text, s.size, s.color);
+          drawWrappedText(s.position, s.text, s.size, s.color);
         }
         ctx.restore();
       }
