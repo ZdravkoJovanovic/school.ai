@@ -726,6 +726,10 @@ video {
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
+.transform {
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -913,10 +917,6 @@ video {
   padding: 0.25rem;
 }
 
-.p-12 {
-  padding: 3rem;
-}
-
 .p-2 {
   padding: 0.5rem;
 }
@@ -927,6 +927,10 @@ video {
 
 .p-4 {
   padding: 1rem;
+}
+
+.p-8 {
+  padding: 2rem;
 }
 
 .px-1 {

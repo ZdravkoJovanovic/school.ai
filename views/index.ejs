@@ -9,6 +9,15 @@
     /* Chat-Scrollbar verstecken, Scroll bleibt möglich */
     #chat-messages { scrollbar-width: none; -ms-overflow-style: none; }
     #chat-messages::-webkit-scrollbar { display: none; }
+    /* Whiteboard: dezentes Grid */
+    .wb-grid {
+      background-color: #121318;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 0;
+    }
   </style>
 </head>
 <body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
@@ -16,7 +25,7 @@
   <div class="flex h-[calc(100vh-56px)]">
     <!-- Linke Fläche (70%) → Whiteboard -->
     <section class="w-[70%] p-4 hidden lg:flex">
-      <div id="whiteboard-wrapper" class="bg-[#121318] rounded-2xl p-12 w-full flex flex-col gap-3">
+      <div id="whiteboard-wrapper" class="wb-grid rounded-2xl p-8 w-full flex flex-col gap-3">
         <!-- Toolbar -->
         <div class="flex items-center gap-4">
           <span class="text-sm text-neutral-300">Farbe:</span>
@@ -169,7 +178,25 @@
         ctx.strokeStyle = currentColor;
       }
 
-      function toXY([nx, ny]){ return [nx * canvas.width / (window.devicePixelRatio||1), ny * canvas.height / (window.devicePixelRatio||1)]; }
+      function computeBounds(strokes){
+        let minX=1, minY=1, maxX=0, maxY=0;
+        for(const s of strokes){
+          if(s.type==='path' && Array.isArray(s.points)){
+            for(const [x,y] of s.points){ minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y); }
+          } else if(s.type==='circle' && Array.isArray(s.center)){
+            const r=s.radius||0.05; const [cx,cy]=s.center; minX=Math.min(minX,cx-r); minY=Math.min(minY,cy-r); maxX=Math.max(maxX,cx+r); maxY=Math.max(maxY,cy+r);
+          } else if(s.type==='text' && Array.isArray(s.position)){
+            const [tx,ty]=s.position; minX=Math.min(minX,tx); minY=Math.min(minY,ty); maxX=Math.max(maxX,tx); maxY=Math.max(maxY,ty);
+          }
+        }
+        if(minX>maxX||minY>maxY){ return {minX:0, minY:0, maxX:1, maxY:1}; }
+        return {minX, minY, maxX, maxY};
+      }
+
+      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.06};
+      function nx(x){ const w=transform.maxX-transform.minX||1; return ((x-transform.minX)/w)*(1-2*transform.margin)+transform.margin; }
+      function ny(y){ const h=transform.maxY-transform.minY||1; return ((y-transform.minY)/h)*(1-2*transform.margin)+transform.margin; }
+      function toXY([nxv, nyv]){ const dpr=window.devicePixelRatio||1; return [nx(nxv)*canvas.width/dpr, ny(nyv)*canvas.height/dpr]; }
 
       function renderSketch(sketch){
         const flat = Array.isArray(sketch?.strokes)
@@ -178,6 +205,7 @@
             ? sketch.layers.flatMap((l)=> Array.isArray(l.strokes)? l.strokes : [])
             : [];
         if (!flat.length) return;
+        transform = {...transform, ...computeBounds(flat)};
         ctx.save();
         const dpr = window.devicePixelRatio || 1;
         function drawPath(points, width, color){
@@ -198,19 +226,27 @@
           ctx.strokeStyle = color || '#ffffff';
           ctx.lineWidth = (width || 0.003) * (canvas.width/dpr);
           const [cx,cy] = toXY(center);
-          const r = (radius || 0.05) * (canvas.width/dpr);
+          const r = (radius || 0.05) * (canvas.width/dpr) * (1-2*transform.margin);
           ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
         }
-        function drawText(position, text, size, color){
+        function drawWrappedText(position, text, size, color){
           const [x,y] = toXY(position);
           ctx.fillStyle = color || '#ffffff';
-          ctx.font = `bold ${Math.round((size||0.04)*(canvas.width/dpr))}px ui-sans-serif`;
-          ctx.fillText(text||'', x, y);
+          const px = Math.round((size||0.04)*(canvas.width/dpr));
+          ctx.font = `600 ${px}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
+          const maxPx = (canvas.width/dpr) * 0.6; // 60% Breite
+          const words = String(text||'').split(/\s+/);
+          let line='', yy=y, lh=px*1.35;
+          for(const w of words){
+            const test=line? line+' '+w : w;
+            if(ctx.measureText(test).width>maxPx){ ctx.fillText(line, x, yy); line=w; yy+=lh; } else { line=test; }
+          }
+          if(line) ctx.fillText(line, x, yy);
         }
         for (const s of flat){
           if (s.type === 'path') drawPath(s.points, s.width, s.color);
           else if (s.type === 'circle') drawCircle(s.center, s.radius, s.width, s.color);
-          else if (s.type === 'text') drawText(s.position, s.text, s.size, s.color);
+          else if (s.type === 'text') drawWrappedText(s.position, s.text, s.size, s.color);
         }
         ctx.restore();
       }
