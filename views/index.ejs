@@ -247,17 +247,48 @@
       list.scrollTop = list.scrollHeight;
     }
 
-    form?.addEventListener('submit', (e) => {
+    // Konversationsverlauf für Backend
+    const history = [];
+
+    form?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = input.value.trim();
       if (!text) return;
+
+      // User Message
       addMessage('user', text);
+      history.push({ role: 'user', content: text });
       input.value = '';
       input.focus();
-      // Bot Antwort (Demo)
-      setTimeout(()=>{
-        addMessage('bot', `Verstanden: ${text.slice(0,300)}${text.length>300?'…':''}`);
-      }, 400);
+
+      // Loading-Pla ceholder
+      const loading = document.createElement('div');
+      loading.className = 'flex gap-3 justify-start px-1';
+      loading.innerHTML = `
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100\">…\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n          </div>\n        </div>`;
+      list.appendChild(loading);
+      list.scrollTop = list.scrollHeight;
+
+      try {
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(()=>({error:'Serverfehler'}));
+          throw new Error(err.error || 'Serverfehler');
+        }
+        const data = await resp.json();
+        const reply = (data.reply || '').toString();
+        // Ersetze Loading durch finale Antwort
+        loading.remove();
+        addMessage('assistant', reply);
+        history.push({ role: 'assistant', content: reply });
+      } catch (err) {
+        loading.remove();
+        addMessage('assistant', 'Fehler: ' + (err?.message || 'Unbekannt'));
+      }
     });
   </script>
 </body>
