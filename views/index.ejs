@@ -225,7 +225,7 @@
         const cw = canvas.width/dpr, ch = canvas.height/dpr;
         const marginX = Math.round(cw*0.02), marginY = Math.round(ch*0.02);
         const gap = Math.round(cw*0.028);
-        const columns = 2; // strikt 2 Spalten
+        const columns = 2; // strikt 2 Spalten (rechts nur Klausurbeispiel)
         const colWidth = (cw - marginX*2 - gap*(columns-1)) / columns;
         // globale, konstante Schriftgröße pro Seite
         let basePx = Math.round(((flat[0]?.size||0.026) * cw) * noteScale);
@@ -260,12 +260,18 @@
           while(lines.length && lines[lines.length-1]==='\u200B'){ lines.pop(); }
           return lines;
         }
-        const examQWrapped = wrapSection(examQ);
-        const examSWrapped = wrapSection(examS);
-        const examAllLines = [...examQWrapped, '\u200B', ...examSWrapped];
-        const examBlockH = examAllLines.length ? (examAllLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
+        let examQWrapped = wrapSection(examQ);
+        let examSWrapped = wrapSection(examS);
+        if (!examQWrapped.length && !examSWrapped.length && examStrokes.length){
+          // Falls keine Überschriften vorhanden, behandle gesamten Inhalt als Lösung
+          examSWrapped = wrapSection(examStrokes);
+        }
+        if (!examQWrapped.length) examQWrapped = ['Aufgabe:'];
+        if (!examSWrapped.length) examSWrapped = ['Lösung:'];
+        const examBlockLines = [...examQWrapped, '\u200B', ...examSWrapped];
+        const examBlockH = examBlockLines.length ? (examBlockLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
 
-        let col = 0;
+        let col = 0; // nur linke Spalte für Infos
         let cursorX = marginX;
         let cursorY = marginY;
 
@@ -294,15 +300,10 @@
           for(const ln of lines){ blockLines += (ln==='\u200B') ? 0.5 : 1; }
           const blockH = blockLines*lineH + paraGap;
           // Spaltenwechsel falls nötig (kein Schrumpfen mehr)
-          const columnBottom = (col === columns-1 && examBlockH>0) ? (ch - marginY - examBlockH - Math.round(paraGap*1.2)) : (ch - marginY);
+          const columnBottom = (ch - marginY);
           if (cursorY + blockH > columnBottom){
-            col += 1;
-            if (col >= columns){
-              // Kein Platz mehr → restliche Inhalte weglassen (nicht überfüllen)
-              break;
-            }
-            cursorX = marginX + col*(colWidth + gap);
-            cursorY = marginY;
+            // Keine rechte Spalte für Content – Infos bleiben links
+            break;
           }
           // Zeichnen
           let y = cursorY;
@@ -314,18 +315,34 @@
           cursorY = y + Math.round(paraGap*0.6);
         }
 
-        // Klausurbeispiel unten rechts zeichnen (klar getrennt)
-        if (examAllLines.length){
-          const xExam = marginX + (columns-1)*(colWidth + gap);
-          let yExam = ch - marginY - examBlockH + Math.round(paraGap*0.5);
-          for (const ln of examAllLines){
-            if (ln==='\u200B'){ yExam += Math.round(paraGap*0.8); continue; }
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(ln, xExam, yExam);
-            yExam += lineH;
-          }
+        // Klausurbeispiel rechts: oben Aufgabe, unten Lösung, mit großem Abstand dazwischen
+        const xRight = marginX + (colWidth + gap);
+        const topTaskStart = marginY;                      // oben rechts
+        const taskRegionH = Math.round(ch * 0.34);         // ~ oberes Drittel
+        const regionGap = Math.round(paraGap * 3);         // klarer Abstand
+        const solStart = topTaskStart + taskRegionH + regionGap; // Lösung unten
+        const solRegionH = (ch - marginY) - solStart;      // Resthöhe
+
+        // Aufgabe zeichnen
+        let yTask = topTaskStart;
+        for (const ln of examQWrapped){
+          if (ln==='\u200B'){ yTask += Math.round(paraGap*0.8); continue; }
+          if (yTask + lineH > topTaskStart + taskRegionH) break; // Region nicht überfüllen
           ctx.fillStyle = '#ffffff';
+          ctx.fillText(ln, xRight, yTask);
+          yTask += lineH;
         }
+
+        // Lösung zeichnen
+        let ySol = solStart;
+        for (const ln of examSWrapped){
+          if (ln==='\u200B'){ ySol += Math.round(paraGap*0.8); continue; }
+          if (ySol + lineH > solStart + solRegionH) break;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(ln, xRight, ySol);
+          ySol += lineH;
+        }
+        ctx.fillStyle = '#ffffff';
         ctx.restore();
       }
 
