@@ -416,6 +416,18 @@
             <div class=\"max-w-[85%]\">\n              <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n              <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span>\n                <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n              </div>\n            </div>`;
           list.appendChild(container);
           const typed = container.querySelector('.typed');
+
+          // Parallel: didaktische Skizze anfordern (ohne Text-Stream zu blockieren)
+          (async ()=>{
+            try {
+              const kres = await fetch('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+              if (kres.ok) {
+                const data = await kres.json();
+                if (data?.sketch) window.renderAISketch?.(data.sketch);
+              }
+            } catch {}
+          })();
+
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
