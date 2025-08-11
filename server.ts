@@ -19,16 +19,25 @@ function getOpenAIClient(): OpenAI {
 }
 const MODEL = (process.env.OPENAI_MODEL || 'gpt-5').trim();
 
-// Professor System Prompt (nur als Präfix, UI/Flows bleiben bestehen)
-const PROFESSOR_SYSTEM_PROMPT = `Du bist ein geduldiger Mathematik‑Professor. Erkläre jedes Thema so, als hätte die Person es noch nie gehört. Arbeite immer in diesem Format:
-[PARSE] Zielaufgabe, gegebene/nötige Formeln, Annahmen/Unklarheiten.
-[PLAN] 3–7 Mikro‑Ziele (vom Einfachen zum Ziel).
-[TEACH] Schritt 1…n: kurze Erklärung + Mini‑Frage.
-[VERIFY] kurze Checks (symbolisch/numerisch) + Domäne/Sonderfälle.
-[QUIZ] 2–3 Mini‑Aufgaben mit kurzer Lösung/Warum.
-[SUMMARY] Merksatz in 1 Zeile.
-[NEXT] nächster Lernschritt.
-Sprache: Deutsch. Prägnant, keine Sprünge, Standard‑Notation.`;
+// Professor System Prompt – einfache, schülerfreundliche Antworten
+const PROFESSOR_SYSTEM_PROMPT = `Rolle: geduldiger Mathe‑Lehrer für 8.–12. Klasse. Sprich einfach, kurze Sätze.
+Wenn der Nutzer eine komplexe Frage stellt, formuliere zuerst eine sehr einfache Version der Frage.
+Antworte IMMER in dieser klaren Struktur:
+1) Einfache Formulierung: 1 kurze Zeile (so würde man die Frage in einfach sagen)
+2) Kurzantwort: 1 Satz (Ja/Nein/Ergebnis in Kürze)
+3) Schritt‑für‑Schritt (3–5 kurze Schritte):
+   - Gegeben (K0, p, i, n, m, …) in einfachen Worten
+   - Passende Formel in Standard‑Notation
+   - Einsetzen der Werte
+   - Rechnen (nur die wichtigsten Zwischenschritte)
+4) Ergebnis + Einheit (klar und fett markiert, falls möglich)
+5) Warum stimmt das? (1–2 kurze Hinweise)
+6) Rückfrage: eine kleine Frage, ob noch etwas vertieft werden soll
+Hinweise:
+- Keine Fachfloskeln, keine langen Absätze. Maximal 2 kurze Sätze pro Bullet.
+- Zahlen und Einheiten immer nennen. Runden am Ende.
+- Wenn etwas fehlt/unklar ist: kurz nachfragen, dann Vorschlag machen.
+Sprache: Deutsch.`;
 
 // View engine setup (robust for ts-node and dist builds)
 app.set('view engine', 'ejs');
@@ -143,7 +152,7 @@ Vorgaben:
       model: MODEL,
       messages: [
         { role: 'system', content: system },
-        { role: 'user', content: `Skizziere didaktisch (nutze nur Text, fülle die Fläche mit maximal vielen, leicht verständlichen Punkten, beende mit einem kurzen Zahlenbeispiel): ${prompt}` },
+        { role: 'user', content: `Skizziere didaktisch: ${prompt}` },
       ],
     });
 
@@ -156,6 +165,30 @@ Vorgaben:
     }
     if (!sketch?.layers && !sketch?.strokes) {
       return res.status(500).json({ error: 'Ungültiges Sketch-Format', raw: content });
+    }
+
+    // Fallback: Wenn keine Klausurbeispiel-Layer vorhanden, fordere sie separat an
+    const hasExamLayer = Array.isArray(sketch?.layers) && sketch.layers.some((l: any)=> /klausur|beispiel/i.test(String(l?.name||'')));
+    if (!hasExamLayer) {
+      try {
+        const forceExamSystem = `Gib ein JSON mit GENAU einer Layer "Klausurbeispiel" zur Aufgabenart des Themas.
+Schema:
+{"layers":[{"name":"Klausurbeispiel","strokes":[{"type":"text","position":[x,y],"text":"Aufgabe: ..."},{"type":"text","position":[x,y],"text":"Lösung: ..."}]}]}
+Nur TEXT-Strokes; keine Pfade/Kreise. Sehr kurz, aber vollständig: Aufgabe 1–3 Zeilen; Lösung 3–6 Zeilen + Ergebnis.`;
+        const examOnly = await openai.chat.completions.create({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: forceExamSystem },
+            { role: 'user', content: `Erzeuge Klausurbeispiel passend zum Thema: ${prompt}` },
+          ],
+        });
+        const c2 = examOnly.choices?.[0]?.message?.content ?? '';
+        const s2 = JSON.parse(c2);
+        if (Array.isArray(s2?.layers)) {
+          // Merge: vorhandene Inhalte + Klausurbeispiel anhängen
+          sketch.layers = Array.isArray(sketch.layers) ? [...sketch.layers, ...s2.layers] : s2.layers;
+        }
+      } catch {}
     }
     res.json({ sketch });
   } catch (err: any) {
