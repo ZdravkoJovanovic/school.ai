@@ -137,7 +137,7 @@ Vorgaben:
 - Stil: digitales Notizblatt; klare Abschnittstitel, darunter kurze, sehr verständliche Bullet‑Erklärungen und Formeln.
 - Fläche maximal nutzen: linksbündig, oben starten, bis ~92% Breite; kleine Ränder; ausreichend Zeilenabstand.
 - Struktur: 1) Idee/Def., 2) Regeln/Formeln, 3) Mini‑Herleitung, 4) Fehler/Tipps. Verwende Kurzformen wie "Anfangskapital=K0", "Zinssatz p% → i=p/100" und sehr dichte Bulletpoints. Fülle die Seite spaltenweise (2 Spalten), nutze die Breite maximal.
-- Zusätzlich MUSS es eine eigene Layer "Klausurbeispiel" geben: Aufgabe (kurz), dann Lösung als Formelweg + Ergebnis; wird unten rechts platziert.`;
+- Zusätzlich MUSS es eine eigene Layer "Klausurbeispiel" geben: Aufgabe (1–3 Zeilen, color "#60A5FA") und Lösung/Rechenweg (3–6 Zeilen + Ergebnis, color "#EF4444"). Diese Section ist strikt getrennt und kommt unten rechts. Vermeide zu viel Text insgesamt; priorisiere Kernpunkte.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,

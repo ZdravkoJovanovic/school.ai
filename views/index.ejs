@@ -236,25 +236,47 @@
         ctx.font = `600 ${basePx}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
         ctx.textBaseline = 'top';
 
-        // Klausurbeispiel vorbereiten (Text zusammenziehen, Blockhöhe kalkulieren)
-        const examText = examStrokes.map(s=> String(s.text)).join('\n');
-        function wrapLinesLocal(text, width){
-          const out = [];
-          const paragraphs = String(text).split(/\n+/);
-          for(const p of paragraphs){
-            let line='';
-            for(const w of p.split(/\s+/)){
-              const test = line? line+' '+w : w;
-              if (ctx.measureText(test).width > width){ if(line) out.push(line); line = w; } else { line = test; }
-            }
-            if(line) out.push(line);
-            out.push('\u200B');
-          }
-          while(out.length && out[out.length-1]==='\u200B') out.pop();
-          return out;
+        // Klausurbeispiel in zwei Bereiche zerlegen: Aufgabe (blau) + Lösung (rot)
+        const BLUE = '#60A5FA';
+        const RED = '#EF4444';
+        function isQuestion(s){
+          const t = String(s.text||'');
+          const c = String(s.color||'').toLowerCase();
+          return c.includes('#60a5fa') || /^\s*aufgabe\b/i.test(t);
         }
-        const examLines = examText ? wrapLinesLocal(examText, colWidth) : [];
-        const examBlockH = examLines.length ? (examLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
+        function isSolution(s){
+          const t = String(s.text||'');
+          const c = String(s.color||'').toLowerCase();
+          return c.includes('#ef4444') || /^\s*l(ö|oe)sung\b/i.test(t) || /rechenweg/i.test(t);
+        }
+        const examQ = examStrokes.filter(isQuestion);
+        const examS = examStrokes.filter(isSolution);
+        function wrapColored(strokes, defaultColor){
+          const lines = [];
+          const colors = [];
+          for(const s of strokes){
+            const text = String(s.text||'');
+            const color = s.color || defaultColor;
+            const paragraphs = text.split(/\n+/);
+            for(const p of paragraphs){
+              let line='';
+              for(const w of p.split(/\s+/)){
+                const test = line? line+' '+w : w;
+                if (ctx.measureText(test).width > colWidth){ if(line){ lines.push(line); colors.push(color); } line = w; } else { line = test; }
+              }
+              if(line){ lines.push(line); colors.push(color); }
+              // kleiner Absatzabstand
+              lines.push('\u200B'); colors.push('');
+            }
+          }
+          while(lines.length && lines[lines.length-1]==='\u200B'){ lines.pop(); colors.pop(); }
+          return {lines, colors};
+        }
+        const examQWrapped = wrapColored(examQ, BLUE);
+        const examSWrapped = wrapColored(examS, RED);
+        const examAllLines = [...examQWrapped.lines, '\u200B', ...examSWrapped.lines];
+        const examAllColors = [...examQWrapped.colors, '', ...examSWrapped.colors];
+        const examBlockH = examAllLines.length ? (examAllLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
 
         let col = 0;
         let cursorX = marginX;
@@ -306,15 +328,18 @@
         }
 
         // Klausurbeispiel unten rechts zeichnen (klar getrennt)
-        if (examLines.length){
+        if (examAllLines.length){
           const xExam = marginX + (columns-1)*(colWidth + gap);
           let yExam = ch - marginY - examBlockH + Math.round(paraGap*0.5);
-          // Überschrift etwas Abstand
-          for (const ln of examLines){
+          for (let i=0;i<examAllLines.length;i++){
+            const ln = examAllLines[i];
+            const colr = examAllColors[i];
             if (ln==='\u200B'){ yExam += Math.round(paraGap*0.8); continue; }
+            if (colr) ctx.fillStyle = colr; else ctx.fillStyle = '#ffffff';
             ctx.fillText(ln, xExam, yExam);
             yExam += lineH;
           }
+          ctx.fillStyle = '#ffffff';
         }
         ctx.restore();
       }
