@@ -21,18 +21,18 @@
     <aside class="w-full lg:w-[30%] bg-[#020202] flex flex-col min-h-[calc(100vh-56px)] p-4">
       <!-- Eingabe oben (klein), um ~7.5% nach unten versetzt -->
       <form id="chat-form" class="mb-4 mt-[7.5vh]">
-        <div class="flex items-center gap-2">
-          <input id="chat-input" type="text" placeholder="Nachricht an School AI..." class="flex-1 rounded-md bg-[#0f0f0f] px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none hover:ring-2 hover:ring-[#2f3b47] focus:ring-2 focus:ring-[#2f3b47]" />
-          <!-- Bild-Icon: cleaner, ohne BG/Border -->
-          <button type="button" aria-label="Bild auswählen" class="p-2 text-neutral-300 hover:text-white focus:outline-none">
+        <div class="relative w-full">
+          <input id="chat-input" type="text" placeholder="Nachricht an School AI..." class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 outline-none ring-2 ring-[#2f3b47] pl-3 pr-16 py-5 text-sm" />
+          <!-- Bild-Icon im Feld -->
+          <button type="button" aria-label="Bild auswählen" class="absolute right-10 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white focus:outline-none">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-5 h-5">
               <path d="M4.5 5.5h15a1.5 1.5 0 011.5 1.5v10a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17V7a1.5 1.5 0 011.5-1.5z"/>
               <path d="M7 14l2.2-2.2a1.5 1.5 0 012.1 0L13.5 14l1.5-1.5a1.5 1.5 0 012.1 0L19.5 15"/>
               <circle cx="8.5" cy="9" r="1.2"/>
             </svg>
           </button>
-          <!-- Senden: weißer Pfeil, ohne BG/Border -->
-          <button type="submit" aria-label="Senden" class="p-2 text-white hover:opacity-90 focus:outline-none">
+          <!-- Senden-Icon im Feld -->
+          <button type="submit" aria-label="Senden" class="absolute right-3 top-1/2 -translate-y-1/2 text-white focus:outline-none">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
               <path d="M2.25 12l18-9-4.5 9 4.5 9-18-9z"/>
             </svg>
