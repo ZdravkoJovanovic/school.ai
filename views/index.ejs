@@ -22,6 +22,16 @@
           <div class="h-5 w-px bg-neutral-700 mx-1"></div>
           <button id="tool-draw" class="px-3 py-1 text-xs rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-200">Zeichnen</button>
           <button id="tool-text" class="px-3 py-1 text-xs rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-200">Text</button>
+          <div class="h-5 w-px bg-neutral-700 mx-1"></div>
+          <!-- Fiktiver Ordner/Sheets-Indikator -->
+          <button type="button" class="flex items-center gap-2 px-3 py-1 rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-xs text-neutral-200 hover:bg-neutral-700">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-4 h-4">
+              <path d="M3 7.5h6l1.8 2H21v7.5A1.5 1.5 0 0119.5 18h-15A1.5 1.5 0 013 16.5V7.5z"/>
+            </svg>
+            <span>Ablage: /School/Sheets</span>
+          </button>
+          <!-- Seitenanzeige -->
+          <span class="text-xs text-white">Seite 1 von 24</span>
         </div>
         <div class="relative w-full flex-1">
           <canvas id="whiteboard-canvas" class="w-full h-full rounded-xl"></canvas>
@@ -107,7 +117,20 @@
       let drawing = false;
       let lastX = 0, lastY = 0;
       let currentColor = '#ef4444'; // rot als default
-      let mode = 'draw'; // 'draw' | 'text'
+      let mode = 'none'; // 'none' | 'draw' | 'text'
+
+      const btnDraw = document.getElementById('tool-draw');
+      const btnText = document.getElementById('tool-text');
+
+      function updateToolUI() {
+        [btnDraw, btnText].forEach(b => b && b.classList.remove('ring-2','ring-white'));
+        if (mode === 'draw' && btnDraw) btnDraw.classList.add('ring-2','ring-white');
+        if (mode === 'text' && btnText) btnText.classList.add('ring-2','ring-white');
+      }
+      function setMode(newMode) {
+        mode = (mode === newMode) ? 'none' : newMode;
+        updateToolUI();
+      }
 
       function resizeCanvas() {
         const holder = textLayer.parentElement; // relative container
@@ -158,10 +181,12 @@
         textLayer.appendChild(node);
         // Drag
         let dragging = false, sx=0, sy=0, ox=0, oy=0;
-        node.addEventListener('mousedown', ev => { dragging = true; sx = ev.clientX; sy = ev.clientY; const r = node.getBoundingClientRect(); ox = r.left - rect.left; oy = r.top - rect.top; ev.preventDefault(); });
-        window.addEventListener('mousemove', ev => { if(!dragging) return; const nx = ox + (ev.clientX - sx); const ny = oy + (ev.clientY - sy); node.style.left = nx + 'px'; node.style.top = ny + 'px'; });
+        node.addEventListener('mousedown', ev => { const rect2 = canvas.getBoundingClientRect(); dragging = true; sx = ev.clientX; sy = ev.clientY; const r = node.getBoundingClientRect(); ox = r.left - rect2.left; oy = r.top - rect2.top; ev.preventDefault(); });
+        window.addEventListener('mousemove', ev => { if(!dragging) return; const rect2 = canvas.getBoundingClientRect(); const nx = ox + (ev.clientX - sx); const ny = oy + (ev.clientY - sy); node.style.left = nx + 'px'; node.style.top = ny + 'px'; });
         window.addEventListener('mouseup', () => dragging = false);
         node.focus();
+        // Nach Platzierung wieder kein Tool aktiv
+        setMode('text'); // toggelt auf 'none'
       });
 
       // Toolbar
@@ -174,8 +199,8 @@
           btn.classList.add('ring-2','ring-white');
         });
       });
-      document.getElementById('tool-draw')?.addEventListener('click', ()=> { mode='draw'; });
-      document.getElementById('tool-text')?.addEventListener('click', ()=> { mode='text'; });
+      btnDraw?.addEventListener('click', ()=> setMode('draw'));
+      btnText?.addEventListener('click', ()=> setMode('text'));
 
       window.addEventListener('resize', resizeCanvas);
       resizeCanvas();
