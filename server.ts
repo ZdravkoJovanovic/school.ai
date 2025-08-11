@@ -32,7 +32,7 @@ app.get('/', (req: Request, res: Response) => {
   res.render('index');
 });
 
-// Chat Endpoint
+// Chat Endpoint (non-streaming)
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { messages } = req.body as { messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>; };
@@ -45,7 +45,6 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const response = await openai.chat.completions.create({
       model: MODEL,
       messages,
-      // Kein temperature-Parameter: einige Modelle akzeptieren nur den Default
     });
 
     const output = response.choices?.[0]?.message?.content ?? '';
@@ -57,6 +56,44 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const detail = err?.response?.data || err?.message || err;
     console.error('OpenAI error:', detail);
     res.status(500).json({ error: 'OpenAI request failed', detail });
+  }
+});
+
+// Chat Streaming Endpoint (chunked text)
+app.post('/api/chat/stream', async (req: Request, res: Response) => {
+  try {
+    const { messages } = req.body as { messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>; };
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages array required' });
+    }
+
+    const openai = getOpenAIClient();
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    const stream = await openai.chat.completions.create({
+      model: MODEL,
+      messages,
+      stream: true,
+    });
+
+    for await (const part of stream as any) {
+      const delta: string = part?.choices?.[0]?.delta?.content || '';
+      if (delta) res.write(delta);
+    }
+    res.end();
+  } catch (err: any) {
+    const msg = err?.message?.startsWith('Missing OPENAI_API_KEY')
+      ? 'OPENAI_API_KEY oder OPEN_AI_SECRET_KEY fehlt in .env'
+      : (err?.response?.data || err?.message || 'OpenAI request failed');
+    if (!res.headersSent) {
+      res.status(500).json({ error: msg });
+    } else {
+      res.end();
+    }
   }
 });
 

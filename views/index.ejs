@@ -288,7 +288,7 @@
       list.scrollTop = list.scrollHeight;
 
       try {
-        const resp = await fetch('/api/chat', {
+        const resp = await fetch('/api/chat/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: history })
@@ -297,12 +297,33 @@
           const err = await resp.json().catch(()=>({error:'Serverfehler'}));
           throw new Error(err.error || 'Serverfehler');
         }
-        const data = await resp.json();
-        const reply = (data.reply || '').toString();
-        // Ersetze Loading durch Tipp-Animation
+        // Stream lesen und direkt anzeigen
+        const reader = resp.body?.getReader();
+        const decoder = new TextDecoder();
         loading.remove();
-        await typeMessage('assistant', reply);
-        history.push({ role: 'assistant', content: reply });
+        let full = '';
+        if (reader) {
+          const target = document.createElement('div');
+          list.appendChild(target);
+          // Temporär: Wir tippen in einen Container hinein
+          const isUser = false;
+          const container = document.createElement('div');
+          container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
+          const time = formatTime(new Date());
+          container.innerHTML = `
+            <div class=\"max-w-[85%]\">\n              <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n              <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span>\n                <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n              </div>\n            </div>`;
+          list.appendChild(container);
+          const typed = container.querySelector('.typed');
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            full += chunk;
+            typed.textContent += chunk;
+            list.scrollTop = list.scrollHeight;
+          }
+          history.push({ role: 'assistant', content: full });
+        }
       } catch (err) {
         loading.remove();
         addMessage('assistant', 'Fehler: ' + (err?.message || 'Unbekannt'));
