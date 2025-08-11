@@ -146,7 +146,10 @@ Vorgaben:
 - Stil: digitales Notizblatt; klare Abschnittstitel, darunter kurze, sehr verständliche Bullet‑Erklärungen und Formeln.
 - Fläche maximal nutzen: linksbündig, oben starten, bis ~92% Breite; kleine Ränder; ausreichend Zeilenabstand.
 - Struktur: 1) Idee/Def., 2) Regeln/Formeln, 3) Mini‑Herleitung, 4) Fehler/Tipps. Verwende Kurzformen wie "Anfangskapital=K0", "Zinssatz p% → i=p/100" und sehr dichte Bulletpoints. Fülle die Seite spaltenweise (2 Spalten), nutze die Breite maximal.
-- Zusätzlich MUSS es eine eigene Layer "Klausurbeispiel" geben: beginne mit der Überschrift "Aufgabe:" (1–3 Zeilen), dann "Lösung:" (Formelweg in 3–6 kurzen Zeilen + Ergebnis). Diese Section ist strikt getrennt und wird unten rechts positioniert. Keine Farben nötig. Vermeide zu viel Text insgesamt; priorisiere Kernpunkte.`;
+- Zusätzlich MUSS es eine eigene Layer "Klausurbeispiel" geben, mit Text‑Strokes, die so formatiert sind:
+  - Beginne mit der Überschrift "Aufgabe:" und beschreibe in 3–6 ganzen, einfachen Sätzen die Situation. Definiere kurz die Begriffe in Worten (z. B. K0 = Startbetrag, p = Zinssatz pro Jahr, t = Laufzeit in Jahren). Nenne die gegebenen Werte, aber KEINE Rechnung und KEIN Ergebnis. Formuliere klar, was berechnet werden soll (z. B. Zinsen Z und Endkapital Kn bei einfacher Verzinsung).
+  - Danach die Überschrift "Lösung:" mit 5–9 Schritten in kurzen Sätzen plus Formelzeilen: 1) Größen festlegen, 2) passende Formel nennen, 3) Werte in Dezimalform, 4) Einsetzen, 5) rechnen, 6) Ergebnis klar mit Einheit. Keine überflüssigen Fachwörter, verständliche Sprache.
+  - Diese Section ist strikt getrennt und wird unten rechts positioniert. Keine Farben nötig.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,
@@ -171,10 +174,13 @@ Vorgaben:
     const hasExamLayer = Array.isArray(sketch?.layers) && sketch.layers.some((l: any)=> /klausur|beispiel/i.test(String(l?.name||'')));
     if (!hasExamLayer) {
       try {
-        const forceExamSystem = `Gib ein JSON mit GENAU einer Layer "Klausurbeispiel" zur Aufgabenart des Themas.
+        const forceExamSystem = `Gib ein JSON mit GENAU einer Layer "Klausurbeispiel" passend zum Thema.
 Schema:
-{"layers":[{"name":"Klausurbeispiel","strokes":[{"type":"text","position":[x,y],"text":"Aufgabe: ..."},{"type":"text","position":[x,y],"text":"Lösung: ..."}]}]}
-Nur TEXT-Strokes; keine Pfade/Kreise. Sehr kurz, aber vollständig: Aufgabe 1–3 Zeilen; Lösung 3–6 Zeilen + Ergebnis.`;
+{"layers":[{"name":"Klausurbeispiel","strokes":[{"type":"text","position":[x,y],"text":"Aufgabe: …"},{"type":"text","position":[x,y],"text":"Lösung: …"}]}]}
+Vorgaben:
+- Nur TEXT-Strokes; keine Pfade/Kreise.
+- Aufgabe: 3–6 ganze, einfache Sätze; erkläre kurz Begriffe (K0 Startbetrag, p Zinssatz, t Laufzeit …); nenne gegebene Werte; sage, was berechnet werden soll; KEIN Ergebnis.
+- Lösung: 5–9 Schritte, kurze Sätze + Formelzeilen; Einsetzen, Rechnen, Ergebnis mit Einheit.`;
         const examOnly = await openai.chat.completions.create({
           model: MODEL,
           messages: [
