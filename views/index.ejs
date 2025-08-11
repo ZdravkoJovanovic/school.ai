@@ -105,7 +105,7 @@
       </form>
 
       <!-- Nachrichtenliste darunter -->
-      <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4">
+      <div id="chat-messages" class="flex-1 overflow-y-auto overflow-x-hidden space-y-4 pr-1">
         <!-- Noch keine Nachrichten: leerer Startzustand -->
       </div>
     </aside>
@@ -212,7 +212,7 @@
       resizeCanvas();
     })();
 
-    // Nur UI-Demo: lokale Anzeige gesendeter Nachrichten
+    // Nur UI-Demo: lokale Anzeige gesendeter Nachrichten + Bot-Reply
     (function(){
       const indicator = document.getElementById('page-indicator');
       const nextBtn = document.getElementById('btn-next-page');
@@ -227,23 +227,30 @@
     const input = document.getElementById('chat-input');
     const list = document.getElementById('chat-messages');
 
+    function escapeHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+    function addMessage(role, text){
+      const isUser = role === 'user';
+      const container = document.createElement('div');
+      container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
+      const bubble = `
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} rounded-lg p-3 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}\n          </div>\n        </div>`;
+      container.innerHTML = bubble;
+      list.appendChild(container);
+      list.scrollTop = list.scrollHeight;
+    }
+
     form?.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = input.value.trim();
       if (!text) return;
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'flex gap-3 justify-end px-1';
-      wrapper.innerHTML = `
-        <div class=\"max-w-[80%]\">
-          <div class=\"text-xs text-neutral-400 mb-1 text-right\">Du</div>
-          <div class=\"bg-[#08090c] rounded-lg p-3 text-sm leading-relaxed text-neutral-100\">${text.replace(/</g,'&lt;')}</div>
-        </div>
-      `;
-      list.appendChild(wrapper);
-      list.scrollTop = list.scrollHeight;
+      addMessage('user', text);
       input.value = '';
       input.focus();
+      // Bot Antwort (Demo)
+      setTimeout(()=>{
+        addMessage('bot', `Verstanden: ${text.slice(0,300)}${text.length>300?'…':''}`);
+      }, 400);
     });
   </script>
 </body>
