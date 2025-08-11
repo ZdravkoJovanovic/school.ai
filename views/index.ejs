@@ -7,7 +7,8 @@
   <link href="/styles.css" rel="stylesheet">
 </head>
 <body class="bg-neutral-900 text-neutral-200 min-h-screen">
-  <div class="flex min-h-screen">
+  <% include navbar/navbar %>
+  <div class="flex min-h-[calc(100vh-56px)]">
     <!-- Linke Fläche (70%) -->
     <section class="w-[70%] p-8 hidden lg:block">
       <div class="max-w-xl">
@@ -17,7 +18,7 @@
     </section>
 
     <!-- Rechte Seite: Chat (30%), gleiche BG, clean -->
-    <aside class="w-full lg:w-[30%] bg-neutral-900 flex flex-col min-h-screen p-4">
+    <aside class="w-full lg:w-[30%] bg-neutral-900 flex flex-col min-h-[calc(100vh-56px)] p-4">
       <!-- Eingabe oben (klein), um ~7.5% nach unten versetzt -->
       <form id="chat-form" class="mb-4 mt-[7.5vh]">
         <div class="flex items-center gap-2">
