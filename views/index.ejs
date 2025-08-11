@@ -236,46 +236,33 @@
         ctx.font = `600 ${basePx}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
         ctx.textBaseline = 'top';
 
-        // Klausurbeispiel in zwei Bereiche zerlegen: Aufgabe (blau) + Lösung (rot)
-        const BLUE = '#60A5FA';
-        const RED = '#EF4444';
-        function isQuestion(s){
-          const t = String(s.text||'');
-          const c = String(s.color||'').toLowerCase();
-          return c.includes('#60a5fa') || /^\s*aufgabe\b/i.test(t);
-        }
-        function isSolution(s){
-          const t = String(s.text||'');
-          const c = String(s.color||'').toLowerCase();
-          return c.includes('#ef4444') || /^\s*l(ö|oe)sung\b/i.test(t) || /rechenweg/i.test(t);
-        }
+        // Klausurbeispiel in zwei Bereiche zerlegen: Aufgabe + Lösung (keine Farben)
+        function isQuestion(s){ const t = String(s.text||''); return /^\s*aufgabe\b/i.test(t); }
+        function isSolution(s){ const t = String(s.text||''); return /^\s*l(ö|oe)sung\b/i.test(t) || /rechenweg/i.test(t); }
         const examQ = examStrokes.filter(isQuestion);
         const examS = examStrokes.filter(isSolution);
-        function wrapColored(strokes, defaultColor){
+        function wrapSection(strokes){
           const lines = [];
-          const colors = [];
           for(const s of strokes){
             const text = String(s.text||'');
-            const color = s.color || defaultColor;
             const paragraphs = text.split(/\n+/);
             for(const p of paragraphs){
               let line='';
               for(const w of p.split(/\s+/)){
                 const test = line? line+' '+w : w;
-                if (ctx.measureText(test).width > colWidth){ if(line){ lines.push(line); colors.push(color); } line = w; } else { line = test; }
+                if (ctx.measureText(test).width > colWidth){ if(line){ lines.push(line); } line = w; } else { line = test; }
               }
-              if(line){ lines.push(line); colors.push(color); }
+              if(line){ lines.push(line); }
               // kleiner Absatzabstand
-              lines.push('\u200B'); colors.push('');
+              lines.push('\u200B');
             }
           }
-          while(lines.length && lines[lines.length-1]==='\u200B'){ lines.pop(); colors.pop(); }
-          return {lines, colors};
+          while(lines.length && lines[lines.length-1]==='\u200B'){ lines.pop(); }
+          return lines;
         }
-        const examQWrapped = wrapColored(examQ, BLUE);
-        const examSWrapped = wrapColored(examS, RED);
-        const examAllLines = [...examQWrapped.lines, '\u200B', ...examSWrapped.lines];
-        const examAllColors = [...examQWrapped.colors, '', ...examSWrapped.colors];
+        const examQWrapped = wrapSection(examQ);
+        const examSWrapped = wrapSection(examS);
+        const examAllLines = [...examQWrapped, '\u200B', ...examSWrapped];
         const examBlockH = examAllLines.length ? (examAllLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
 
         let col = 0;
@@ -331,11 +318,9 @@
         if (examAllLines.length){
           const xExam = marginX + (columns-1)*(colWidth + gap);
           let yExam = ch - marginY - examBlockH + Math.round(paraGap*0.5);
-          for (let i=0;i<examAllLines.length;i++){
-            const ln = examAllLines[i];
-            const colr = examAllColors[i];
+          for (const ln of examAllLines){
             if (ln==='\u200B'){ yExam += Math.round(paraGap*0.8); continue; }
-            if (colr) ctx.fillStyle = colr; else ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = '#ffffff';
             ctx.fillText(ln, xExam, yExam);
             yExam += lineH;
           }
@@ -473,6 +458,17 @@
       ta.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form?.requestSubmit(); }});
     })();
 
+    async function fetchWithRetry(url, options, retries=1, delay=800){
+      try{
+        const res = await fetch(url, options);
+        return res;
+      }catch(err){
+        if (retries <= 0) throw err;
+        await new Promise(r=>setTimeout(r, delay));
+        return fetchWithRetry(url, options, retries-1, delay*1.5);
+      }
+    }
+
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = input.value.trim();
@@ -496,7 +492,7 @@
         list.appendChild(loading);
         list.scrollTop = list.scrollHeight;
         try {
-          const kres = await fetch('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+          const kres = await fetchWithRetry('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) }, 2, 600);
           loading.remove();
           if (kres.ok) {
             const data = await kres.json();
@@ -554,7 +550,7 @@
           // Parallel: didaktische Skizze anfordern (ohne Text-Stream zu blockieren)
           (async ()=>{
             try {
-              const kres = await fetch('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+              const kres = await fetchWithRetry('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) }, 2, 600);
               if (kres.ok) {
                 const data = await kres.json();
                 if (data?.sketch) window.renderAISketch?.(data.sketch);
