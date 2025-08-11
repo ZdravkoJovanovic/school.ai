@@ -736,6 +736,10 @@ video {
   animation: spin 1s linear infinite;
 }
 
+.resize-none {
+  resize: none;
+}
+
 .resize {
   resize: both;
 }
@@ -945,9 +949,9 @@ video {
   padding-bottom: 0.25rem;
 }
 
-.py-5 {
-  padding-top: 1.25rem;
-  padding-bottom: 1.25rem;
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 .pb-2 {
@@ -966,12 +970,12 @@ video {
   padding-right: 0.25rem;
 }
 
-.pr-28 {
-  padding-right: 7rem;
-}
-
 .pr-3 {
   padding-right: 0.75rem;
+}
+
+.pr-40 {
+  padding-right: 10rem;
 }
 
 .pr-8 {
@@ -1002,6 +1006,10 @@ video {
 
 .font-semibold {
   font-weight: 600;
+}
+
+.leading-6 {
+  line-height: 1.5rem;
 }
 
 .leading-relaxed {
