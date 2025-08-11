@@ -40,13 +40,12 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'messages array required' });
     }
 
-    // Client on demand, damit fehlende ENV nicht beim Booten crasht
     const openai = getOpenAIClient();
 
     const response = await openai.chat.completions.create({
       model: MODEL,
       messages,
-      temperature: 0.7,
+      // Kein temperature-Parameter: einige Modelle akzeptieren nur den Default
     });
 
     const output = response.choices?.[0]?.message?.content ?? '';
@@ -55,8 +54,9 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     if (err?.message?.startsWith('Missing OPENAI_API_KEY')) {
       return res.status(500).json({ error: 'OPENAI_API_KEY oder OPEN_AI_SECRET_KEY fehlt in .env' });
     }
-    console.error('OpenAI error:', err?.response?.data || err?.message || err);
-    res.status(500).json({ error: 'OpenAI request failed' });
+    const detail = err?.response?.data || err?.message || err;
+    console.error('OpenAI error:', detail);
+    res.status(500).json({ error: 'OpenAI request failed', detail });
   }
 });
 
