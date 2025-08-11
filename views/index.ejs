@@ -127,7 +127,7 @@
 
       let drawing = false;
       let lastX = 0, lastY = 0;
-      let currentColor = '#ef4444'; // rot als default
+      let currentColor = '#ef4444'; // rot als default (für manuelles Zeichnen), AI nutzt weiß
       let mode = 'none'; // 'none' | 'draw' | 'text'
 
       const btnDraw = document.getElementById('tool-draw');
@@ -156,6 +156,47 @@
         ctx.lineJoin = 'round';
         ctx.lineWidth = 3;
         ctx.strokeStyle = currentColor;
+      }
+
+      function toXY([nx, ny]){ return [nx * canvas.width / (window.devicePixelRatio||1), ny * canvas.height / (window.devicePixelRatio||1)]; }
+
+      function renderSketch(sketch){
+        if (!sketch?.strokes) return;
+        ctx.save();
+        const dpr = window.devicePixelRatio || 1;
+        function drawPath(points, width, color){
+          if (!Array.isArray(points) || points.length < 2) return;
+          ctx.strokeStyle = color || '#ffffff';
+          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr);
+          ctx.beginPath();
+          const [x0,y0] = toXY(points[0]);
+          ctx.moveTo(x0,y0);
+          for (let i=1;i<points.length;i++){
+            const [x,y] = toXY(points[i]);
+            ctx.lineTo(x,y);
+          }
+          ctx.stroke();
+        }
+        function drawCircle(center, radius, width, color){
+          if (!Array.isArray(center)) return;
+          ctx.strokeStyle = color || '#ffffff';
+          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr);
+          const [cx,cy] = toXY(center);
+          const r = (radius || 0.05) * (canvas.width/dpr);
+          ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+        }
+        function drawText(position, text, size, color){
+          const [x,y] = toXY(position);
+          ctx.fillStyle = color || '#ffffff';
+          ctx.font = `bold ${Math.round((size||0.04)*(canvas.width/dpr))}px ui-sans-serif`;
+          ctx.fillText(text||'', x, y);
+        }
+        for (const s of sketch.strokes){
+          if (s.type === 'path') drawPath(s.points, s.width, s.color);
+          else if (s.type === 'circle') drawCircle(s.center, s.radius, s.width, s.color);
+          else if (s.type === 'text') drawText(s.position, s.text, s.size, s.color);
+        }
+        ctx.restore();
       }
 
       function startDraw(x, y) { drawing = true; [lastX, lastY] = [x, y]; }
@@ -196,8 +237,7 @@
         window.addEventListener('mousemove', ev => { if(!dragging) return; const rect2 = canvas.getBoundingClientRect(); const nx = ox + (ev.clientX - sx); const ny = oy + (ev.clientY - sy); node.style.left = nx + 'px'; node.style.top = ny + 'px'; });
         window.addEventListener('mouseup', () => dragging = false);
         node.focus();
-        // Nach Platzierung wieder kein Tool aktiv
-        setMode('text'); // toggelt auf 'none'
+        setMode('text');
       });
 
       // Toolbar
@@ -205,7 +245,6 @@
         btn.addEventListener('click', () => {
           currentColor = btn.getAttribute('data-color');
           ctx.strokeStyle = currentColor;
-          // aktive Markierung
           wrapper.querySelectorAll('[data-color]').forEach(b=>b.classList.remove('ring-2','ring-white'));
           btn.classList.add('ring-2','ring-white');
         });
@@ -215,6 +254,9 @@
 
       window.addEventListener('resize', resizeCanvas);
       resizeCanvas();
+
+      // Expose skizzen Renderer global für Chat-Handler
+      window.renderAISketch = renderSketch;
     })();
 
     // Nur UI-Demo: lokale Anzeige gesendeter Nachrichten + Bot-Reply
@@ -323,6 +365,19 @@
             list.scrollTop = list.scrollHeight;
           }
           history.push({ role: 'assistant', content: full });
+
+          // Intent: Skizzieren?
+          const sketchIntent = /skizz(i|ie)re|draw|sketch/i.test(history[history.length-2]?.content || '');
+          if (sketchIntent) {
+            try {
+              const prompt = history[history.length-2]?.content || 'Skizziere etwas';
+              const kres = await fetch('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt }) });
+              if (kres.ok) {
+                const data = await kres.json();
+                if (data?.sketch) window.renderAISketch?.(data.sketch);
+              }
+            } catch {}
+          }
         }
       } catch (err) {
         loading.remove();

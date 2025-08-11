@@ -97,6 +97,53 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
   }
 });
 
+// Sketch Endpoint – erzeugt normiertes Vektor-JSON
+app.post('/api/sketch', async (req: Request, res: Response) => {
+  try {
+    const { prompt } = req.body as { prompt: string };
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'prompt required' });
+    }
+
+    const openai = getOpenAIClient();
+
+    const system = `Du bist ein Zeichenassistent. Antworte ausschließlich mit einem JSON-Objekt nach diesem Schema:
+{
+  "strokes": [
+    {"type":"path","points":[[0.1,0.2],[0.15,0.25]],"width":0.003,"color":"#ffffff"},
+    {"type":"circle","center":[0.5,0.5],"radius":0.1,"width":0.003,"color":"#ffffff"},
+    {"type":"text","position":[0.5,0.1],"text":"Titel","size":0.04,"color":"#ffffff"}
+  ]
+}
+Regeln: Koordinaten und Längen sind normiert in [0,1] relativ zur Zeichenfläche. Verwende maximal ~400 Punkte insgesamt. Farbe default #ffffff. Keine zusätzlichen Felder, kein Markdown, nur JSON.`;
+
+    const completion = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: `Skizziere: ${prompt}` },
+      ],
+    });
+
+    const content = completion.choices?.[0]?.message?.content ?? '';
+    let sketch: any;
+    try {
+      sketch = JSON.parse(content);
+    } catch {
+      return res.status(500).json({ error: 'Sketch JSON konnte nicht geparst werden', raw: content });
+    }
+    if (!sketch?.strokes) {
+      return res.status(500).json({ error: 'Ungültiges Sketch-Format', raw: content });
+    }
+    res.json({ sketch });
+  } catch (err: any) {
+    const msg = err?.message?.startsWith('Missing OPENAI_API_KEY')
+      ? 'OPENAI_API_KEY oder OPEN_AI_SECRET_KEY fehlt in .env'
+      : (err?.response?.data || err?.message || 'OpenAI request failed');
+    res.status(500).json({ error: msg });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });
