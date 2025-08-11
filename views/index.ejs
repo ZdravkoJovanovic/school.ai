@@ -247,6 +247,24 @@
       list.scrollTop = list.scrollHeight;
     }
 
+    async function typeMessage(role, fullText){
+      const isUser = role === 'user';
+      const container = document.createElement('div');
+      container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
+      const time = formatTime(new Date());
+      container.innerHTML = `
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span>\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`;
+      list.appendChild(container);
+      const typed = container.querySelector('.typed');
+      // schnelle, aber flüssige Tipp-Animation
+      const maxDelay = 12; // ms pro Zeichen
+      for (let i=0;i<fullText.length;i++){
+        typed.textContent += fullText[i];
+        if (i % 3 === 0) await new Promise(r=>setTimeout(r, Math.min(maxDelay, 8)));
+        list.scrollTop = list.scrollHeight;
+      }
+    }
+
     // Konversationsverlauf für Backend
     const history = [];
 
@@ -261,11 +279,11 @@
       input.value = '';
       input.focus();
 
-      // Loading-Pla ceholder
+      // Loading-Bubble (größer + Spinner)
       const loading = document.createElement('div');
       loading.className = 'flex gap-3 justify-start px-1';
       loading.innerHTML = `
-        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100\">…\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n          </div>\n        </div>`;
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 min-w-[160px] flex items-center gap-2\">\n            <span class=\"inline-block h-4 w-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin\"></span>\n            <span class=\"text-neutral-300\">Denke nach…</span>\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n          </div>\n        </div>`;
       list.appendChild(loading);
       list.scrollTop = list.scrollHeight;
 
@@ -281,9 +299,9 @@
         }
         const data = await resp.json();
         const reply = (data.reply || '').toString();
-        // Ersetze Loading durch finale Antwort
+        // Ersetze Loading durch Tipp-Animation
         loading.remove();
-        addMessage('assistant', reply);
+        await typeMessage('assistant', reply);
         history.push({ role: 'assistant', content: reply });
       } catch (err) {
         loading.remove();
