@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>School AI</title>
   <link href="/styles.css" rel="stylesheet">
+  <style>
+    /* Chat-Scrollbar verstecken, Scroll bleibt möglich */
+    #chat-messages { scrollbar-width: none; -ms-overflow-style: none; }
+    #chat-messages::-webkit-scrollbar { display: none; }
+  </style>
 </head>
 <body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
   <%- include('navbar/navbar') %>
@@ -228,13 +233,15 @@
     const list = document.getElementById('chat-messages');
 
     function escapeHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function formatTime(d){return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});}    
 
     function addMessage(role, text){
       const isUser = role === 'user';
       const container = document.createElement('div');
       container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
+      const time = formatTime(new Date());
       const bubble = `
-        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} rounded-lg p-3 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}\n          </div>\n        </div>`;
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} rounded-lg p-3 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}\n            <div class=\"mt-1 text-[10px] text-neutral-400 ${isUser ? 'text-right' : 'text-right'}\">${time}</div>\n          </div>\n        </div>`;
       container.innerHTML = bubble;
       list.appendChild(container);
       list.scrollTop = list.scrollHeight;

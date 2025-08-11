@@ -645,6 +645,10 @@ video {
   margin-left: 0.25rem;
 }
 
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
 .mt-\[10px\] {
   margin-top: 10px;
 }
@@ -937,6 +941,10 @@ video {
 
 .text-right {
   text-align: right;
+}
+
+.text-\[10px\] {
+  font-size: 10px;
 }
 
 .text-sm {
