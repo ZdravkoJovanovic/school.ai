@@ -172,7 +172,12 @@
       function toXY([nx, ny]){ return [nx * canvas.width / (window.devicePixelRatio||1), ny * canvas.height / (window.devicePixelRatio||1)]; }
 
       function renderSketch(sketch){
-        if (!sketch?.strokes) return;
+        const flat = Array.isArray(sketch?.strokes)
+          ? sketch.strokes
+          : Array.isArray(sketch?.layers)
+            ? sketch.layers.flatMap((l)=> Array.isArray(l.strokes)? l.strokes : [])
+            : [];
+        if (!flat.length) return;
         ctx.save();
         const dpr = window.devicePixelRatio || 1;
         function drawPath(points, width, color){
@@ -202,7 +207,7 @@
           ctx.font = `bold ${Math.round((size||0.04)*(canvas.width/dpr))}px ui-sans-serif`;
           ctx.fillText(text||'', x, y);
         }
-        for (const s of sketch.strokes){
+        for (const s of flat){
           if (s.type === 'path') drawPath(s.points, s.width, s.color);
           else if (s.type === 'circle') drawCircle(s.center, s.radius, s.width, s.color);
           else if (s.type === 'text') drawText(s.position, s.text, s.size, s.color);
