@@ -200,39 +200,41 @@
       function toXY([nxv, nyv]){ const dpr=window.devicePixelRatio||1; return [nx(nxv)*canvas.width/dpr, ny(nyv)*canvas.height/dpr]; }
 
       function renderSketch(sketch){
-        const flatAll = Array.isArray(sketch?.strokes)
+        // Eingehende Daten in Text-Content und optionales Klausurbeispiel aufteilen
+        const raw = Array.isArray(sketch?.strokes)
           ? sketch.strokes
           : Array.isArray(sketch?.layers)
             ? sketch.layers.flatMap((l)=> Array.isArray(l.strokes)? l.strokes : [])
             : [];
-        // Layer auflösen, damit wir ein "Klausurbeispiel" separat behandeln können
-        const layers = Array.isArray(sketch?.layers) ? sketch.layers : [{ name: '', strokes: flatAll }];
-        const isExam = (name)=> /klausur|beispiel/i.test(String(name||''));
-        const examStrokes = layers
-          .filter(l=>isExam(l.name))
+        const layersArr = Array.isArray(sketch?.layers) ? sketch.layers : [{ name: '', strokes: raw }];
+        const isExamLayer = (name)=> /klausur|beispiel/i.test(String(name||''));
+        const examStrokes = layersArr
+          .filter(l=>isExamLayer(l.name))
           .flatMap(l=> Array.isArray(l.strokes)? l.strokes : [])
           .filter(s=> s && s.type==='text' && s.text);
-        const contentStrokes = layers
-          .filter(l=>!isExam(l.name))
+        const contentStrokes = layersArr
+          .filter(l=>!isExamLayer(l.name))
           .flatMap(l=> Array.isArray(l.strokes)? l.strokes : [])
           .filter(s=> s && s.type==='text' && s.text);
-        // In Lesereihenfolge sortieren (y,x)
         const flat = contentStrokes.sort((a,b)=> (a.position?.[1]??0) - (b.position?.[1]??0) || (a.position?.[0]??0) - (b.position?.[0]??0));
-        if (!flat.length) return;
+        if (!flat.length && !examStrokes.length) return;
         ctx.save();
+        // Canvas leeren, damit alte Inhalte nicht überlagern
+        ctx.clearRect(0,0,canvas.width,canvas.height);
         const dpr = window.devicePixelRatio || 1;
         const cw = canvas.width/dpr, ch = canvas.height/dpr;
         const marginX = Math.round(cw*0.02), marginY = Math.round(ch*0.02);
         const gap = Math.round(cw*0.028);
-        const columns = 2;
+        const columns = 2; // strikt 2 Spalten
         const colWidth = (cw - marginX*2 - gap*(columns-1)) / columns;
         // globale, konstante Schriftgröße pro Seite
         let basePx = Math.round(((flat[0]?.size||0.026) * cw) * noteScale);
         basePx = Math.max(10, Math.min(basePx, 18));
-        const lineH = Math.round(basePx*1.18);
-        const paraGap = Math.round(basePx*0.42);
+        const lineH = Math.round(basePx*1.16);
+        const paraGap = Math.round(basePx*0.36);
         ctx.fillStyle = '#ffffff';
         ctx.font = `600 ${basePx}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
+        ctx.textBaseline = 'top';
 
         // Klausurbeispiel vorbereiten (Text zusammenziehen, Blockhöhe kalkulieren)
         const examText = examStrokes.map(s=> String(s.text)).join('\n');
@@ -252,7 +254,7 @@
           return out;
         }
         const examLines = examText ? wrapLinesLocal(examText, colWidth) : [];
-        const examBlockH = examLines.length ? (examLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap) : 0;
+        const examBlockH = examLines.length ? (examLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
 
         let col = 0;
         let cursorX = marginX;
@@ -287,18 +289,8 @@
           if (cursorY + blockH > columnBottom){
             col += 1;
             if (col >= columns){
-              // zusätzliche (provisorische) dritte Spalte, falls sehr viel Inhalt
-              // nutzt verbleibende Breite minimal
-              const extraWidth = cw - (marginX*2 + (columns-1)*gap + columns*colWidth);
-              if (extraWidth > 80){
-                // temporär dritte schmale Spalte
-                col = columns; // index 2
-                cursorX = marginX + (columns)*(colWidth + gap);
-                // setze colWidth lokal kleiner
-              } else {
-                // starte oben in letzter Spalte weiter
-                col = columns-1;
-              }
+              // Kein Platz mehr → restliche Inhalte weglassen (nicht überfüllen)
+              break;
             }
             cursorX = marginX + col*(colWidth + gap);
             cursorY = marginY;
@@ -316,7 +308,7 @@
         // Klausurbeispiel unten rechts zeichnen (klar getrennt)
         if (examLines.length){
           const xExam = marginX + (columns-1)*(colWidth + gap);
-          let yExam = ch - marginY - examBlockH;
+          let yExam = ch - marginY - examBlockH + Math.round(paraGap*0.5);
           // Überschrift etwas Abstand
           for (const ln of examLines){
             if (ln==='\u200B'){ yExam += Math.round(paraGap*0.8); continue; }
