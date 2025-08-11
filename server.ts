@@ -118,16 +118,26 @@ app.post('/api/sketch', async (req: Request, res: Response) => {
 
     const openai = getOpenAIClient();
 
-    const system = `Du bist ein Zeichenassistent für Unterricht. Antworte ausschließlich mit einem JSON-Objekt:
+    const system = `Du bist ein Zeichenassistent für Unterricht im Notizblatt-Stil. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, keine Erklärsätze.
+Schema:
 {
   "layers": [
-    {"name":"Achsen","strokes":[{"type":"path","points":[[0.1,0.9],[0.9,0.9]],"width":0.002,"color":"#ffffff"}, {"type":"path","points":[[0.1,0.9],[0.1,0.1]],"width":0.002,"color":"#ffffff"}]},
-    {"name":"Objekt","strokes":[{"type":"path","points":[[0.2,0.8],[0.3,0.7]],"width":0.003,"color":"#ffffff"}]},
-    {"name":"Beschriftung","strokes":[{"type":"text","position":[0.85,0.92],"text":"x","size":0.03,"color":"#ffffff"}]}
+    {"name":"Schritt 1","strokes":[ ... ]},
+    {"name":"Schritt 2","strokes":[ ... ]},
+    {"name":"Tipps","strokes":[ ... ]}
   ],
-  "steps": ["Achsengerüst", "Kurve/Objekt", "Markierungen/Labels"]
+  "steps": ["Kurzer Titel für Schritt 1","…"]
 }
-Regeln: Koordinaten/Längen normiert [0,1], Farbe default #ffffff, max ~400 Punkte, keine Zusatztexte/Markdown – nur reines JSON.`;
+Strokes:
+- {"type":"text","position":[x,y],"text":"…","size":0.045,"color":"#ffffff"}
+- {"type":"path","points":[[x,y],…],"width":0.003,"color":"#ffffff"} (für Pfeile/Unterstreichungen/Rahmen)
+- {"type":"circle", ...} (nur wenn nötig)
+Vorgaben:
+- KEINE Koordinatenachsen, KEINE echten Diagramm-Gitter – nur Textblöcke, Pfeile, simple Figuren.
+- Stil: digitales Notizblatt wie auf A4: große handschriftartige Titel, darunter kurze Erklärsätze, einfache Pfeile, kleine Formeln.
+- Fläche maximal nutzen: Inhalte linksbündig, oben anfangen, bis ~80–90% Breite; kleine Ränder.
+- Schrittweise aufbauen: Schritt 1 (Definition/Idee) → Schritt 2 (Regel/Herleitung) → Schritt 3 (Mini‑Beispiel) → Schritt 4 (Hinweis/Fehlerquelle). Max ~400 Punkte insgesamt.
+- Farbe standard #ffffff. Nur JSON ohne Markdown.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,

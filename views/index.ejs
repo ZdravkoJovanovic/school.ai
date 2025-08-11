@@ -193,7 +193,7 @@
         return {minX, minY, maxX, maxY};
       }
 
-      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.06};
+      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.04};
       function nx(x){ const w=transform.maxX-transform.minX||1; return ((x-transform.minX)/w)*(1-2*transform.margin)+transform.margin; }
       function ny(y){ const h=transform.maxY-transform.minY||1; return ((y-transform.minY)/h)*(1-2*transform.margin)+transform.margin; }
       function toXY([nxv, nyv]){ const dpr=window.devicePixelRatio||1; return [nx(nxv)*canvas.width/dpr, ny(nyv)*canvas.height/dpr]; }
@@ -232,11 +232,11 @@
         function drawWrappedText(position, text, size, color){
           const [x,y] = toXY(position);
           ctx.fillStyle = color || '#ffffff';
-          const px = Math.round((size||0.04)*(canvas.width/dpr));
+          const px = Math.round((size||0.05)*(canvas.width/dpr));
           ctx.font = `600 ${px}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
-          const maxPx = (canvas.width/dpr) * 0.6; // 60% Breite
+          const maxPx = (canvas.width/dpr) * 0.8; // 80% Breite
           const words = String(text||'').split(/\s+/);
-          let line='', yy=y, lh=px*1.35;
+          let line='', yy=y, lh=px*1.45;
           for(const w of words){
             const test=line? line+' '+w : w;
             if(ctx.measureText(test).width>maxPx){ ctx.fillText(line, x, yy); line=w; yy+=lh; } else { line=test; }
