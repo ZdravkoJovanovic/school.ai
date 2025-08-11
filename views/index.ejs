@@ -1,104 +1,82 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School AI Project</title>
-    <link href="/styles.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>School AI</title>
+  <link href="/styles.css" rel="stylesheet">
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <!-- Header -->
-        <header class="text-center mb-12">
-            <h1 class="text-5xl font-bold text-gray-800 mb-4">
-                🎓 School AI
-            </h1>
-            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-                Willkommen bei unserem innovativen AI-Projekt für die Schule der Zukunft
-            </p>
-        </header>
+<body class="bg-neutral-900 text-neutral-200 min-h-screen">
+  <!-- Hauptlayout: Links leer/Info, rechts Chat -->
+  <div class="flex min-h-screen">
+    <!-- Linke Fläche (70%) – bewusst minimal gehalten) -->
+    <section class="w-[70%] p-8 hidden lg:block">
+      <div class="max-w-xl">
+        <h1 class="text-3xl font-semibold mb-3">School AI</h1>
+        <p class="text-neutral-400">Dein smarter Lernbegleiter. Stelle Fragen, erhalte Erklärungen und lerne schneller.</p>
+      </div>
+    </section>
 
-        <!-- Main Content -->
-        <main class="max-w-4xl mx-auto">
-            <!-- Hero Section -->
-            <section class="bg-white rounded-2xl shadow-xl p-8 mb-8">
-                <div class="text-center">
-                    <div class="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-6 flex items-center justify-center">
-                        <span class="text-3xl text-white">🚀</span>
-                    </div>
-                    <h2 class="text-3xl font-bold text-gray-800 mb-4">
-                        Hello World!
-                    </h2>
-                    <p class="text-lg text-gray-600 mb-6">
-                        Unser TypeScript + Express + Tailwind CSS Server läuft erfolgreich!
-                    </p>
-                    <div class="flex justify-center space-x-4">
-                        <span class="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                            ✅ TypeScript
-                        </span>
-                        <span class="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                            ✅ Express
-                        </span>
-                        <span class="px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                            ✅ Tailwind CSS
-                        </span>
-                    </div>
-                </div>
-            </section>
+    <!-- Rechte Seite: Chat (30%) -->
+    <aside class="w-full lg:w-[30%] border-l border-neutral-700 bg-[#1E211E] flex flex-col min-h-screen">
+      <!-- Header -->
+      <header class="px-4 py-3 border-b border-neutral-700 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+          <h2 class="text-sm tracking-wide text-neutral-300">School AI Chat</h2>
+        </div>
+        <span class="text-xs text-neutral-500">Beta</span>
+      </header>
 
-            <!-- Features Grid -->
-            <section class="grid md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <span class="text-2xl">⚡</span>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Schnell</h3>
-                    <p class="text-gray-600">Optimiert für Performance und Geschwindigkeit</p>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
-                    <div class="w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <span class="text-2xl">🔒</span>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Sicher</h3>
-                    <p class="text-gray-600">TypeScript für bessere Code-Qualität</p>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
-                    <div class="w-16 h-16 bg-purple-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <span class="text-2xl">🎨</span>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Schön</h3>
-                    <p class="text-gray-600">Moderne UI mit Tailwind CSS</p>
-                </div>
-            </section>
+      <!-- Nachrichtenliste -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <!-- Beispielnachrichten -->
+        <div class="flex gap-3">
+          <div class="shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700"></div>
+          <div class="max-w-[80%]">
+            <div class="text-xs text-neutral-400 mb-1">School AI</div>
+            <div class="bg-neutral-800/80 ring-1 ring-neutral-700 rounded-lg p-3 text-sm leading-relaxed">
+              Willkommen! Wie kann ich dir beim Lernen helfen?
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <!-- Status Section -->
-            <section class="bg-white rounded-2xl shadow-xl p-8">
-                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Server Status</h3>
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-700">Server läuft auf:</span>
-                            <span class="font-mono text-sm bg-gray-200 px-2 py-1 rounded">localhost:3000</span>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-700">Status:</span>
-                            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                                Online
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
+      <!-- Eingabe -->
+      <form id="chat-form" class="border-t border-neutral-700 p-3">
+        <div class="flex items-end gap-2">
+          <textarea id="chat-input" rows="1" placeholder="Nachricht an School AI..." class="flex-1 resize-none rounded-md bg-neutral-800/70 ring-1 ring-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/60 px-3 py-2 text-sm placeholder-neutral-500 text-neutral-100"></textarea>
+          <button type="submit" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-sm">Senden</button>
+        </div>
+      </form>
+    </aside>
+  </div>
 
-        <!-- Footer -->
-        <footer class="text-center mt-12 text-gray-500">
-            <p>&copy; 2024 School AI Project. Built with ❤️ and modern tech.</p>
-        </footer>
-    </div>
+  <script>
+    // Kleines, optionales UI-Enhancement: lokale Anzeige gesendeter Nachrichten
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('chat-input');
+    const list = document.getElementById('chat-messages');
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex gap-3 justify-end';
+      wrapper.innerHTML = `
+        <div class="max-w-[80%]">
+          <div class="text-xs text-neutral-400 mb-1 text-right">Du</div>
+          <div class="bg-emerald-600/20 ring-1 ring-emerald-700/50 rounded-lg p-3 text-sm leading-relaxed text-neutral-100">${text.replace(/</g,'&lt;')}</div>
+        </div>
+        <div class="shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700"></div>
+      `;
+      list.appendChild(wrapper);
+      list.scrollTop = list.scrollHeight;
+      input.value = '';
+      input.focus();
+    });
+  </script>
 </body>
 </html>
