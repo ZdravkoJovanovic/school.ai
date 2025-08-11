@@ -6,20 +6,33 @@
   <title>School AI</title>
   <link href="/styles.css" rel="stylesheet">
 </head>
-<body class="bg-[#020202] text-neutral-200 min-h-screen">
+<body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
   <%- include('navbar/navbar') %>
-  <div class="flex min-h-[calc(100vh-56px)]">
+  <div class="flex h-[calc(100vh-56px)]">
     <!-- Linke Fläche (70%) → Whiteboard -->
     <section class="w-[70%] p-4 hidden lg:flex">
-      <div id="whiteboard-wrapper" class="bg-[#121318] rounded-2xl p-6 w-full flex">
-        <div class="w-full h-[calc(100vh-56px-2rem)]">
+      <div id="whiteboard-wrapper" class="bg-[#121318] rounded-2xl p-12 w-full flex flex-col gap-3">
+        <!-- Toolbar -->
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-neutral-300">Farbe:</span>
+          <button data-color="#ffffff" class="w-5 h-5 rounded-full bg-white ring-1 ring-neutral-600"></button>
+          <button data-color="#3b82f6" class="w-5 h-5 rounded-full bg-[#3b82f6] ring-1 ring-neutral-600"></button>
+          <button data-color="#ef4444" class="w-5 h-5 rounded-full bg-[#ef4444] ring-1 ring-neutral-600"></button>
+          <button data-color="#f59e0b" class="w-5 h-5 rounded-full bg-[#f59e0b] ring-1 ring-neutral-600"></button>
+          <div class="h-5 w-px bg-neutral-700 mx-1"></div>
+          <button id="tool-draw" class="px-3 py-1 text-xs rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-200">Zeichnen</button>
+          <button id="tool-text" class="px-3 py-1 text-xs rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-200">Text</button>
+        </div>
+        <div class="relative w-full flex-1">
           <canvas id="whiteboard-canvas" class="w-full h-full rounded-xl"></canvas>
+          <!-- Text Overlay Container -->
+          <div id="text-layer" class="absolute inset-0 pointer-events-none"></div>
         </div>
       </div>
     </section>
 
     <!-- Rechte Seite: Chat (30%), gleiche BG, clean -->
-    <aside class="w-full lg:w-[30%] bg-[#020202] flex flex-col min-h-[calc(100vh-56px)] p-4">
+    <aside class="w-full lg:w-[30%] bg-[#020202] flex flex-col h-[calc(100vh-56px)] p-4">
       <!-- Mini-Header über dem Input (ca. 10px Abstand zur Navbar) -->
       <div class="flex items-center justify-between mb-2 mt-[10px]">
         <div class="bg-[#121318] border border-[#2a2a2a] rounded-md px-3 py-1 text-sm font-medium text-neutral-100">New Chat</div>
@@ -83,36 +96,37 @@
   </div>
 
   <script>
-    // Whiteboard Setup
+    // Whiteboard Setup mit Farben + Text-Tool
     (function() {
       const canvas = document.getElementById('whiteboard-canvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
+      const wrapper = document.getElementById('whiteboard-wrapper');
+      const textLayer = document.getElementById('text-layer');
+
       let drawing = false;
       let lastX = 0, lastY = 0;
+      let currentColor = '#ef4444'; // rot als default
+      let mode = 'draw'; // 'draw' | 'text'
 
       function resizeCanvas() {
-        const wrapper = document.getElementById('whiteboard-wrapper');
-        if (!wrapper) return;
-        const rect = wrapper.getBoundingClientRect();
-        // Padding already applied; use inner div size
-        const holder = wrapper.querySelector('div');
-        const hRect = holder.getBoundingClientRect();
+        const holder = textLayer.parentElement; // relative container
+        const rect = holder.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(hRect.width * dpr);
-        canvas.height = Math.floor(hRect.height * dpr);
-        canvas.style.width = hRect.width + 'px';
-        canvas.style.height = hRect.height + 'px';
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.lineWidth = 3;
-        ctx.strokeStyle = '#ff3b30'; // Rot als Standardfarbe
+        ctx.strokeStyle = currentColor;
       }
 
       function startDraw(x, y) { drawing = true; [lastX, lastY] = [x, y]; }
       function draw(x, y) {
-        if (!drawing) return;
+        if (!drawing || mode !== 'draw') return;
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
         ctx.lineTo(x, y);
@@ -122,22 +136,46 @@
       function stopDraw() { drawing = false; }
 
       // Mouse
-      canvas.addEventListener('mousedown', e => startDraw(e.offsetX, e.offsetY));
+      canvas.addEventListener('mousedown', e => { if (mode==='draw') startDraw(e.offsetX, e.offsetY); });
       canvas.addEventListener('mousemove', e => draw(e.offsetX, e.offsetY));
       window.addEventListener('mouseup', stopDraw);
       canvas.addEventListener('mouseleave', stopDraw);
-      // Touch
-      canvas.addEventListener('touchstart', e => {
-        const t = e.touches[0];
+
+      // Text-Modus: Klick fügt dragbare Textbox hinzu
+      canvas.addEventListener('click', e => {
+        if (mode !== 'text') return;
         const rect = canvas.getBoundingClientRect();
-        startDraw(t.clientX - rect.left, t.clientY - rect.top);
-      }, { passive: true });
-      canvas.addEventListener('touchmove', e => {
-        const t = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        draw(t.clientX - rect.left, t.clientY - rect.top);
-      }, { passive: true });
-      canvas.addEventListener('touchend', stopDraw);
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const node = document.createElement('div');
+        node.contentEditable = 'true';
+        node.textContent = 'Text';
+        node.className = 'pointer-events-auto absolute px-2 py-1 rounded bg-transparent text-sm';
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+        node.style.color = currentColor;
+        node.style.cursor = 'move';
+        textLayer.appendChild(node);
+        // Drag
+        let dragging = false, sx=0, sy=0, ox=0, oy=0;
+        node.addEventListener('mousedown', ev => { dragging = true; sx = ev.clientX; sy = ev.clientY; const r = node.getBoundingClientRect(); ox = r.left - rect.left; oy = r.top - rect.top; ev.preventDefault(); });
+        window.addEventListener('mousemove', ev => { if(!dragging) return; const nx = ox + (ev.clientX - sx); const ny = oy + (ev.clientY - sy); node.style.left = nx + 'px'; node.style.top = ny + 'px'; });
+        window.addEventListener('mouseup', () => dragging = false);
+        node.focus();
+      });
+
+      // Toolbar
+      wrapper.querySelectorAll('[data-color]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentColor = btn.getAttribute('data-color');
+          ctx.strokeStyle = currentColor;
+          // aktive Markierung
+          wrapper.querySelectorAll('[data-color]').forEach(b=>b.classList.remove('ring-2','ring-white'));
+          btn.classList.add('ring-2','ring-white');
+        });
+      });
+      document.getElementById('tool-draw')?.addEventListener('click', ()=> { mode='draw'; });
+      document.getElementById('tool-text')?.addEventListener('click', ()=> { mode='text'; });
 
       window.addEventListener('resize', resizeCanvas);
       resizeCanvas();
