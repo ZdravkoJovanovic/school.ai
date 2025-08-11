@@ -608,12 +608,20 @@ video {
   inset: 0px;
 }
 
+.bottom-1 {
+  bottom: 0.25rem;
+}
+
 .left-2\.5 {
   left: 0.625rem;
 }
 
 .right-10 {
   right: 2.5rem;
+}
+
+.right-2 {
+  right: 0.5rem;
 }
 
 .right-3 {
@@ -643,10 +651,6 @@ video {
 
 .ml-1 {
   margin-left: 0.25rem;
-}
-
-.mt-1 {
-  margin-top: 0.25rem;
 }
 
 .mt-\[10px\] {
@@ -919,6 +923,10 @@ video {
   padding-bottom: 1.25rem;
 }
 
+.pb-2 {
+  padding-bottom: 0.5rem;
+}
+
 .pl-3 {
   padding-left: 0.75rem;
 }
@@ -937,6 +945,10 @@ video {
 
 .pr-3 {
   padding-right: 0.75rem;
+}
+
+.pr-8 {
+  padding-right: 2rem;
 }
 
 .text-right {

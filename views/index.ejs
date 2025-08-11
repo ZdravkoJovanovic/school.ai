@@ -241,7 +241,7 @@
       container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
       const time = formatTime(new Date());
       const bubble = `
-        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} rounded-lg p-3 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}\n            <div class=\"mt-1 text-[10px] text-neutral-400 ${isUser ? 'text-right' : 'text-right'}\">${time}</div>\n          </div>\n        </div>`;
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`;
       container.innerHTML = bubble;
       list.appendChild(container);
       list.scrollTop = list.scrollHeight;
