@@ -16,53 +16,32 @@
       </div>
     </section>
 
-    <!-- Rechte Seite: Chat (30%) -->
-    <aside class="w-full lg:w-[30%] bg-neutral-900 flex flex-col min-h-screen">
-      <!-- Innere Chat-Box mit Kontrast und grauen Rändern -->
-      <div class="m-3 rounded-xl ring-1 ring-neutral-700 bg-[#1E211E] flex flex-col min-h-[calc(100vh-1.5rem)]">
-        <!-- Header -->
-        <header class="px-4 py-3 border-b border-neutral-700 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <h2 class="text-sm tracking-wide text-neutral-300">School AI Chat</h2>
-          </div>
-          <span class="text-xs text-neutral-500">Beta</span>
-        </header>
-
-        <!-- Nachrichtenliste -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          <!-- Beispielnachricht -->
-          <div class="flex gap-3">
-            <div class="shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700"></div>
-            <div class="max-w-[80%]">
-              <div class="text-xs text-neutral-400 mb-1">School AI</div>
-              <div class="bg-neutral-800/80 ring-1 ring-neutral-700 rounded-lg p-3 text-sm leading-relaxed">
-                Willkommen! Wie kann ich dir beim Lernen helfen?
-              </div>
-            </div>
-          </div>
+    <!-- Rechte Seite: Chat (30%), gleiche BG, clean -->
+    <aside class="w-full lg:w-[30%] bg-neutral-900 flex flex-col min-h-screen p-4">
+      <!-- Eingabe oben (klein), kein Rand, Input mit #1E211E -->
+      <form id="chat-form" class="mb-4">
+        <div class="flex items-center gap-2">
+          <input id="chat-input" type="text" placeholder="Nachricht an School AI..." class="flex-1 rounded-md bg-[#1E211E] px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-emerald-600/50" />
+          <!-- Bild-Icon: cleaner, ohne BG/Border -->
+          <button type="button" aria-label="Bild auswählen" class="p-2 text-neutral-300 hover:text-white focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-5 h-5">
+              <path d="M4.5 5.5h15a1.5 1.5 0 011.5 1.5v10a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17V7a1.5 1.5 0 011.5-1.5z"/>
+              <path d="M7 14l2.2-2.2a1.5 1.5 0 012.1 0L13.5 14l1.5-1.5a1.5 1.5 0 012.1 0L19.5 15"/>
+              <circle cx="8.5" cy="9" r="1.2"/>
+            </svg>
+          </button>
+          <!-- Senden: weißer Pfeil, ohne BG/Border -->
+          <button type="submit" aria-label="Senden" class="p-2 text-white hover:opacity-90 focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path d="M2.25 12l18-9-4.5 9 4.5 9-18-9z"/>
+            </svg>
+          </button>
         </div>
+      </form>
 
-        <!-- Eingabe -->
-        <form id="chat-form" class="border-t border-neutral-700 p-3">
-          <div class="flex items-center gap-2">
-            <textarea id="chat-input" rows="1" placeholder="Nachricht an School AI..." class="flex-1 resize-none rounded-md bg-neutral-800/70 ring-1 ring-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/60 px-3 py-2 text-sm placeholder-neutral-500 text-neutral-100"></textarea>
-            <!-- Image Icon Button (ohne Funktion) -->
-            <button type="button" aria-label="Bild hochladen" class="shrink-0 p-2 rounded-md ring-1 ring-neutral-700 bg-neutral-800/60 hover:bg-neutral-800">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-5 h-5 text-neutral-200">
-                <path d="M3.75 6.75A2.25 2.25 0 016 4.5h12a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0118 19.5H6a2.25 2.25 0 01-2.25-2.25V6.75z"/>
-                <path d="M7.5 13.5l2.25-2.25a1.5 1.5 0 012.121 0L15 14.25l1.5-1.5a1.5 1.5 0 012.121 0L21 15"/>
-                <circle cx="8.75" cy="8.75" r="1.25"/>
-              </svg>
-            </button>
-            <!-- Senden Pfeil (weiß) -->
-            <button type="submit" aria-label="Senden" class="shrink-0 p-2 rounded-md bg-emerald-600 hover:bg-emerald-500">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-white">
-                <path d="M2.25 12l18-9-4.5 9 4.5 9-18-9z"/>
-              </svg>
-            </button>
-          </div>
-        </form>
+      <!-- Nachrichtenliste darunter -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4">
+        <!-- Noch keine Nachrichten: leerer Startzustand -->
       </div>
     </aside>
   </div>
@@ -79,13 +58,12 @@
       if (!text) return;
 
       const wrapper = document.createElement('div');
-      wrapper.className = 'flex gap-3 justify-end';
+      wrapper.className = 'flex gap-3 justify-end px-1';
       wrapper.innerHTML = `
         <div class=\"max-w-[80%]\">
           <div class=\"text-xs text-neutral-400 mb-1 text-right\">Du</div>
-          <div class=\"bg-emerald-600/20 ring-1 ring-emerald-700/50 rounded-lg p-3 text-sm leading-relaxed text-neutral-100\">${text.replace(/</g,'&lt;')}</div>
+          <div class=\"bg-[#1E211E] rounded-lg p-3 text-sm leading-relaxed text-neutral-100\">${text.replace(/</g,'&lt;')}</div>
         </div>
-        <div class=\"shrink-0 w-7 h-7 rounded bg-neutral-800 ring-1 ring-neutral-700\"></div>
       `;
       list.appendChild(wrapper);
       list.scrollTop = list.scrollHeight;
