@@ -641,6 +641,10 @@ video {
   margin-bottom: 1rem;
 }
 
+.ml-2 {
+  margin-left: 0.5rem;
+}
+
 .mt-\[10px\] {
   margin-top: 10px;
 }
@@ -1017,6 +1021,10 @@ video {
 .hover\:bg-neutral-700:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(64 64 64 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-neutral-700\/40:hover {
+  background-color: rgb(64 64 64 / 0.4);
 }
 
 .hover\:text-white:hover {

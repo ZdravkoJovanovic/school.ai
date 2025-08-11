@@ -31,7 +31,12 @@
             <span>Ablage: /School/Sheets</span>
           </button>
           <!-- Seitenanzeige -->
-          <span class="text-xs text-white">Seite 1 von 24</span>
+          <span id="page-indicator" class="text-xs text-white">Seite 1 von 24</span>
+          <button id="btn-next-page" type="button" class="ml-2 p-1 rounded-md text-neutral-300 hover:text-white hover:bg-neutral-700/40 focus:outline-none" aria-label="Nächste Seite">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path d="M9 6l6 6-6 6"/>
+            </svg>
+          </button>
         </div>
         <div class="relative w-full flex-1">
           <canvas id="whiteboard-canvas" class="w-full h-full rounded-xl"></canvas>
@@ -207,6 +212,16 @@
     })();
 
     // Nur UI-Demo: lokale Anzeige gesendeter Nachrichten
+    (function(){
+      const indicator = document.getElementById('page-indicator');
+      const nextBtn = document.getElementById('btn-next-page');
+      let current = 1, total = 24;
+      function renderPage(){ if(indicator) indicator.textContent = `Seite ${current} von ${total}`; }
+      nextBtn?.addEventListener('click', ()=>{ current = current >= total ? 1 : current + 1; renderPage(); });
+      renderPage();
+    })();
+
+    // Chat-Demo
     const form = document.getElementById('chat-form');
     const input = document.getElementById('chat-input');
     const list = document.getElementById('chat-messages');
