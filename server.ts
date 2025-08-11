@@ -11,9 +11,9 @@ const PORT: number = parseInt(process.env.PORT || '3000', 10);
 
 // OpenAI Client lazy init
 function getOpenAIClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = (process.env.OPENAI_API_KEY || process.env.OPEN_AI_SECRET_KEY || '').trim();
   if (!apiKey) {
-    throw new Error('Missing OPENAI_API_KEY');
+    throw new Error('Missing OPENAI_API_KEY/OPEN_AI_SECRET_KEY');
   }
   return new OpenAI({ apiKey });
 }
@@ -52,8 +52,8 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const output = response.choices?.[0]?.message?.content ?? '';
     res.json({ reply: output });
   } catch (err: any) {
-    if (err?.message === 'Missing OPENAI_API_KEY') {
-      return res.status(500).json({ error: 'OPENAI_API_KEY fehlt in .env' });
+    if (err?.message?.startsWith('Missing OPENAI_API_KEY')) {
+      return res.status(500).json({ error: 'OPENAI_API_KEY oder OPEN_AI_SECRET_KEY fehlt in .env' });
     }
     console.error('OpenAI error:', err?.response?.data || err?.message || err);
     res.status(500).json({ error: 'OpenAI request failed' });
