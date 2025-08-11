@@ -19,6 +19,19 @@ function getOpenAIClient(): OpenAI {
 }
 const MODEL = (process.env.OPENAI_MODEL || 'gpt-5').trim();
 
+// Professor System Prompt (nur als Präfix, UI/Flows bleiben bestehen)
+const PROFESSOR_SYSTEM_PROMPT = `Du bist Professor‑KI & Orchestrator in einer Lern‑SaaS. Ziel: Nutzer:in von 0 → Verständnis → Anwendung führen – für jedes Mathe‑Thema (Ableitung, Integral, Gleichungen, Beweise, Geometrie, Textaufgaben …).
+Arbeite immer in folgender Pipeline und genau im Ausgabeschema.
+[PARSE] Eingabe (Text/Skizze) präzisieren: Zielaufgabe, gegebene/nötige Formeln, Symbole, Annahmen, Unklarheiten.
+[PLAN] Mini‑Lehrplan mit 3–7 Mikro‑Zielen passend zu Level und Zielmodus (TL;DR | Walkthrough | Proof‑Skizze).
+[TEACH] Schritt‑für‑Schritt in atomaren Schritten (Schritt 1…n), kurze Alltags‑Erklärung + ggf. Mini‑Beispiel. Mit kurzen Socratic‑Fragen.
+[VERIFY] Kritische Schritte symbolisch/konzeptionell prüfen; wo sinnvoll: 1–2 numerische Spot‑Checks. Domäne/Sonderfälle klar nennen.
+[QUIZ] 2–3 Mikro‑Aufgaben (ohne Taschenrechner), Expected Answer + Warum (1 Satz).
+[SUMMARY] Einzeilige Merksatz‑Zusammenfassung.
+[NEXT] Nächster sinnvoller Lernschritt/Transfer.
+Didaktik: prägnant, Standard‑Notation, Rechenschritte zeilenweise, Annahmen/Fallunterscheidungen nennen. Bei Beweis/Unsicherheit: kurz 2–3 Ansätze vergleichen und Ergebnis in [VERIFY] konsolidieren. Sprache: Deutsch.
+Wenn Parsing‑Unsicherheit > 30% → erst 1 Klarstellungsfrage in [PARSE], dann fortfahren.`;
+
 // View engine setup (robust for ts-node and dist builds)
 app.set('view engine', 'ejs');
 app.set('views', path.join(process.cwd(), 'views'));
@@ -44,7 +57,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
 
     const response = await openai.chat.completions.create({
       model: MODEL,
-      messages,
+      messages: [{ role: 'system', content: PROFESSOR_SYSTEM_PROMPT }, ...messages],
     });
 
     const output = response.choices?.[0]?.message?.content ?? '';
@@ -76,7 +89,7 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
 
     const stream = await openai.chat.completions.create({
       model: MODEL,
-      messages,
+      messages: [{ role: 'system', content: PROFESSOR_SYSTEM_PROMPT }, ...messages],
       stream: true,
     });
 
@@ -97,7 +110,7 @@ app.post('/api/chat/stream', async (req: Request, res: Response) => {
   }
 });
 
-// Sketch Endpoint – erzeugt normiertes Vektor-JSON
+// Sketch Endpoint – erzeugt normiertes Vektor-JSON (didaktisch)
 app.post('/api/sketch', async (req: Request, res: Response) => {
   try {
     const { prompt } = req.body as { prompt: string };
@@ -107,21 +120,22 @@ app.post('/api/sketch', async (req: Request, res: Response) => {
 
     const openai = getOpenAIClient();
 
-    const system = `Du bist ein Zeichenassistent. Antworte ausschließlich mit einem JSON-Objekt nach diesem Schema:
+    const system = `Du bist ein Zeichenassistent für Unterricht. Antworte ausschließlich mit einem JSON-Objekt:
 {
-  "strokes": [
-    {"type":"path","points":[[0.1,0.2],[0.15,0.25]],"width":0.003,"color":"#ffffff"},
-    {"type":"circle","center":[0.5,0.5],"radius":0.1,"width":0.003,"color":"#ffffff"},
-    {"type":"text","position":[0.5,0.1],"text":"Titel","size":0.04,"color":"#ffffff"}
-  ]
+  "layers": [
+    {"name":"Achsen","strokes":[{"type":"path","points":[[0.1,0.9],[0.9,0.9]],"width":0.002,"color":"#ffffff"}, {"type":"path","points":[[0.1,0.9],[0.1,0.1]],"width":0.002,"color":"#ffffff"}]},
+    {"name":"Objekt","strokes":[{"type":"path","points":[[0.2,0.8],[0.3,0.7]],"width":0.003,"color":"#ffffff"}]},
+    {"name":"Beschriftung","strokes":[{"type":"text","position":[0.85,0.92],"text":"x","size":0.03,"color":"#ffffff"}]}
+  ],
+  "steps": ["Achsengerüst", "Kurve/Objekt", "Markierungen/Labels"]
 }
-Regeln: Koordinaten und Längen sind normiert in [0,1] relativ zur Zeichenfläche. Verwende maximal ~400 Punkte insgesamt. Farbe default #ffffff. Keine zusätzlichen Felder, kein Markdown, nur JSON.`;
+Regeln: Koordinaten/Längen normiert [0,1], Farbe default #ffffff, max ~400 Punkte, keine Zusatztexte/Markdown – nur reines JSON.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,
       messages: [
         { role: 'system', content: system },
-        { role: 'user', content: `Skizziere: ${prompt}` },
+        { role: 'user', content: `Skizziere didaktisch: ${prompt}` },
       ],
     });
 
@@ -132,7 +146,7 @@ Regeln: Koordinaten und Längen sind normiert in [0,1] relativ zur Zeichenfläch
     } catch {
       return res.status(500).json({ error: 'Sketch JSON konnte nicht geparst werden', raw: content });
     }
-    if (!sketch?.strokes) {
+    if (!sketch?.layers && !sketch?.strokes) {
       return res.status(500).json({ error: 'Ungültiges Sketch-Format', raw: content });
     }
     res.json({ sketch });
