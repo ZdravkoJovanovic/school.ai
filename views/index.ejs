@@ -193,7 +193,8 @@
         return {minX, minY, maxX, maxY};
       }
 
-      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.04};
+      let transform = {minX:0,minY:0,maxX:1,maxY:1,margin:0.03};
+      const noteScale = 0.6; // Schrift/Strich global kleiner → mehr Inhalt
       function nx(x){ const w=transform.maxX-transform.minX||1; return ((x-transform.minX)/w)*(1-2*transform.margin)+transform.margin; }
       function ny(y){ const h=transform.maxY-transform.minY||1; return ((y-transform.minY)/h)*(1-2*transform.margin)+transform.margin; }
       function toXY([nxv, nyv]){ const dpr=window.devicePixelRatio||1; return [nx(nxv)*canvas.width/dpr, ny(nyv)*canvas.height/dpr]; }
@@ -211,7 +212,7 @@
         function drawPath(points, width, color){
           if (!Array.isArray(points) || points.length < 2) return;
           ctx.strokeStyle = color || '#ffffff';
-          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr);
+          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr) * noteScale;
           ctx.beginPath();
           const [x0,y0] = toXY(points[0]);
           ctx.moveTo(x0,y0);
@@ -224,19 +225,19 @@
         function drawCircle(center, radius, width, color){
           if (!Array.isArray(center)) return;
           ctx.strokeStyle = color || '#ffffff';
-          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr);
+          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr) * noteScale;
           const [cx,cy] = toXY(center);
-          const r = (radius || 0.05) * (canvas.width/dpr) * (1-2*transform.margin);
+          const r = (radius || 0.05) * (canvas.width/dpr) * (1-2*transform.margin) * noteScale;
           ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
         }
         function drawWrappedText(position, text, size, color){
           const [x,y] = toXY(position);
           ctx.fillStyle = color || '#ffffff';
-          const px = Math.round((size||0.05)*(canvas.width/dpr));
+          const px = Math.round((size||0.032)*(canvas.width/dpr) * noteScale);
           ctx.font = `600 ${px}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
-          const maxPx = (canvas.width/dpr) * 0.8; // 80% Breite
+          const maxPx = (canvas.width/dpr) * 0.9; // 90% Breite
           const words = String(text||'').split(/\s+/);
-          let line='', yy=y, lh=px*1.45;
+          let line='', yy=y, lh=px*1.3;
           for(const w of words){
             const test=line? line+' '+w : w;
             if(ctx.measureText(test).width>maxPx){ ctx.fillText(line, x, yy); line=w; yy+=lh; } else { line=test; }
