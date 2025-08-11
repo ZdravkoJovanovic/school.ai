@@ -205,70 +205,124 @@
           : Array.isArray(sketch?.layers)
             ? sketch.layers.flatMap((l)=> Array.isArray(l.strokes)? l.strokes : [])
             : [];
-        // Nur Text-Strokes zulassen, alle Pfade/Kreise entfernen
-        const flat = flatAll.filter((s)=> s && s.type === 'text');
+        // Layer auflösen, damit wir ein "Klausurbeispiel" separat behandeln können
+        const layers = Array.isArray(sketch?.layers) ? sketch.layers : [{ name: '', strokes: flatAll }];
+        const isExam = (name)=> /klausur|beispiel/i.test(String(name||''));
+        const examStrokes = layers
+          .filter(l=>isExam(l.name))
+          .flatMap(l=> Array.isArray(l.strokes)? l.strokes : [])
+          .filter(s=> s && s.type==='text' && s.text);
+        const contentStrokes = layers
+          .filter(l=>!isExam(l.name))
+          .flatMap(l=> Array.isArray(l.strokes)? l.strokes : [])
+          .filter(s=> s && s.type==='text' && s.text);
+        // In Lesereihenfolge sortieren (y,x)
+        const flat = contentStrokes.sort((a,b)=> (a.position?.[1]??0) - (b.position?.[1]??0) || (a.position?.[0]??0) - (b.position?.[0]??0));
         if (!flat.length) return;
-        transform = {...transform, ...computeBounds(flat)};
         ctx.save();
         const dpr = window.devicePixelRatio || 1;
-        let lastTextBottom = 0; // Anti-Overlap (Pixel)
-        function drawPath(points, width, color){
-          if (!Array.isArray(points) || points.length < 2) return;
-          ctx.strokeStyle = color || '#ffffff';
-          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr) * noteScale;
-          ctx.beginPath();
-          const [x0,y0] = toXY(points[0]);
-          ctx.moveTo(x0,y0);
-          for (let i=1;i<points.length;i++){
-            const [x,y] = toXY(points[i]);
-            ctx.lineTo(x,y);
-          }
-          ctx.stroke();
-        }
-        function drawCircle(center, radius, width, color){
-          if (!Array.isArray(center)) return;
-          ctx.strokeStyle = color || '#ffffff';
-          ctx.lineWidth = (width || 0.003) * (canvas.width/dpr) * noteScale;
-          const [cx,cy] = toXY(center);
-          const r = (radius || 0.05) * (canvas.width/dpr) * (1-2*transform.margin) * noteScale;
-          ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-        }
-        function drawWrappedText(position, text, size, color){
-          let [x,y] = toXY(position);
-          ctx.fillStyle = color || '#ffffff';
-          // Anti-Overlap: falls zu nahe am vorherigen Text → leicht nach unten schieben
-          if (y < lastTextBottom + 8) { y = lastTextBottom + 8; }
-          // Dynamische Schriftgröße: kleiner machen, bis der Block in die Resthöhe passt
-          let px = Math.max(8, Math.round((size||0.026)*(canvas.width/dpr) * noteScale));
-          let maxPx = (canvas.width/dpr) * 0.92; // 92% Breite
-          let lines = [];
-          const content = String(text||'');
-          function wrap(withPx){
-            ctx.font = `600 ${withPx}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
-            const words = content.split(/\s+/);
-            const out=[]; let line='';
-            for(const w of words){
-              const test=line? line+' '+w : w;
-              if(ctx.measureText(test).width>maxPx){ if(line) out.push(line); line=w; } else { line=test; }
+        const cw = canvas.width/dpr, ch = canvas.height/dpr;
+        const marginX = Math.round(cw*0.02), marginY = Math.round(ch*0.02);
+        const gap = Math.round(cw*0.028);
+        const columns = 2;
+        const colWidth = (cw - marginX*2 - gap*(columns-1)) / columns;
+        // globale, konstante Schriftgröße pro Seite
+        let basePx = Math.round(((flat[0]?.size||0.026) * cw) * noteScale);
+        basePx = Math.max(10, Math.min(basePx, 18));
+        const lineH = Math.round(basePx*1.18);
+        const paraGap = Math.round(basePx*0.42);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `600 ${basePx}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
+
+        // Klausurbeispiel vorbereiten (Text zusammenziehen, Blockhöhe kalkulieren)
+        const examText = examStrokes.map(s=> String(s.text)).join('\n');
+        function wrapLinesLocal(text, width){
+          const out = [];
+          const paragraphs = String(text).split(/\n+/);
+          for(const p of paragraphs){
+            let line='';
+            for(const w of p.split(/\s+/)){
+              const test = line? line+' '+w : w;
+              if (ctx.measureText(test).width > width){ if(line) out.push(line); line = w; } else { line = test; }
             }
             if(line) out.push(line);
-            return out;
+            out.push('\u200B');
           }
-          lines = wrap(px);
-          let lh = px*1.28;
-          const maxH = (canvas.height/dpr) - y - 8; // Resthöhe mit kleinem Offset
-          while ((lines.length*lh) > maxH && px>8){
-            px = Math.max(8, Math.floor(px*0.92));
-            lh = px*1.24;
-            lines = wrap(px);
-          }
-          ctx.font = `600 ${px}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
-          let yy = y;
-          for(const ln of lines){ ctx.fillText(ln, x, yy); yy += lh; }
-          lastTextBottom = yy;
+          while(out.length && out[out.length-1]==='\u200B') out.pop();
+          return out;
         }
+        const examLines = examText ? wrapLinesLocal(examText, colWidth) : [];
+        const examBlockH = examLines.length ? (examLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap) : 0;
+
+        let col = 0;
+        let cursorX = marginX;
+        let cursorY = marginY;
+
+        function wrapLines(text){
+          const out = [];
+          const paragraphs = String(text).split(/\n+/);
+          for(const p of paragraphs){
+            let line='';
+            for(const w of p.split(/\s+/)){
+              const test = line? line+' '+w : w;
+              if (ctx.measureText(test).width > colWidth){ if(line) out.push(line); line = w; } else { line = test; }
+            }
+            if(line) out.push(line);
+            // Absatztrenner als leere Zeile minimiert
+            out.push('\u200B');
+          }
+          // letzte Trenner entfernen
+          while(out.length && out[out.length-1]==='\u200B') out.pop();
+          return out;
+        }
+
         for (const s of flat){
-          drawWrappedText(s.position, s.text, s.size, s.color);
+          const lines = wrapLines(s.text);
+          // Höhe des Blocks berechnen (leere Trenner zählen halb)
+          let blockLines = 0;
+          for(const ln of lines){ blockLines += (ln==='\u200B') ? 0.5 : 1; }
+          const blockH = blockLines*lineH + paraGap;
+          // Spaltenwechsel falls nötig (kein Schrumpfen mehr)
+          const columnBottom = (col === columns-1 && examBlockH>0) ? (ch - marginY - examBlockH - Math.round(paraGap*1.2)) : (ch - marginY);
+          if (cursorY + blockH > columnBottom){
+            col += 1;
+            if (col >= columns){
+              // zusätzliche (provisorische) dritte Spalte, falls sehr viel Inhalt
+              // nutzt verbleibende Breite minimal
+              const extraWidth = cw - (marginX*2 + (columns-1)*gap + columns*colWidth);
+              if (extraWidth > 80){
+                // temporär dritte schmale Spalte
+                col = columns; // index 2
+                cursorX = marginX + (columns)*(colWidth + gap);
+                // setze colWidth lokal kleiner
+              } else {
+                // starte oben in letzter Spalte weiter
+                col = columns-1;
+              }
+            }
+            cursorX = marginX + col*(colWidth + gap);
+            cursorY = marginY;
+          }
+          // Zeichnen
+          let y = cursorY;
+          for (const ln of lines){
+            if (ln==='\u200B'){ y += Math.round(paraGap*0.6); continue; }
+            ctx.fillText(ln, cursorX, y);
+            y += lineH;
+          }
+          cursorY = y + Math.round(paraGap*0.6);
+        }
+
+        // Klausurbeispiel unten rechts zeichnen (klar getrennt)
+        if (examLines.length){
+          const xExam = marginX + (columns-1)*(colWidth + gap);
+          let yExam = ch - marginY - examBlockH;
+          // Überschrift etwas Abstand
+          for (const ln of examLines){
+            if (ln==='\u200B'){ yExam += Math.round(paraGap*0.8); continue; }
+            ctx.fillText(ln, xExam, yExam);
+            yExam += lineH;
+          }
         }
         ctx.restore();
       }

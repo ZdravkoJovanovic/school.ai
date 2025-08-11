@@ -125,6 +125,7 @@ Schema:
     {"name":"Schritt 1","strokes":[ ... ]},
     {"name":"Schritt 2","strokes":[ ... ]},
     {"name":"Tipps","strokes":[ ... ]}
+    ,{"name":"Klausurbeispiel","strokes":[ ... ]}
   ],
   "steps": ["Kurzer Titel für Schritt 1","…"]
 }
@@ -135,8 +136,8 @@ Vorgaben:
 - KEINE Koordinatenachsen/Gitter.
 - Stil: digitales Notizblatt; klare Abschnittstitel, darunter kurze, sehr verständliche Bullet‑Erklärungen und Formeln.
 - Fläche maximal nutzen: linksbündig, oben starten, bis ~92% Breite; kleine Ränder; ausreichend Zeilenabstand.
-- Struktur: 1) Idee/Definition, 2) Regeln/Formeln, 3) Schritt‑für‑Schritt mini Herleitung, 4) Mini‑Beispiel mit konkreten Zahlen (Ende der Seite), 5) typische Fehler.
-- Farbe standard #ffffff. Nur JSON ohne Markdown.`;
+- Struktur: 1) Idee/Def., 2) Regeln/Formeln, 3) Mini‑Herleitung, 4) Fehler/Tipps. Verwende Kurzformen wie "Anfangskapital=K0", "Zinssatz p% → i=p/100" und sehr dichte Bulletpoints. Fülle die Seite spaltenweise (2 Spalten), nutze die Breite maximal.
+- Zusätzlich MUSS es eine eigene Layer "Klausurbeispiel" geben: Aufgabe (kurz), dann Lösung als Formelweg + Ergebnis; wird unten rechts platziert.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,
