@@ -321,6 +321,39 @@
       input.value = '';
       input.focus();
 
+      // Intent: Skizzieren? (DE + EN Varianten)
+      const isSketchIntent = /(skizzier|skizziere|zeichne|male|draw|sketch)/i.test(text);
+      if (isSketchIntent) {
+        // Whiteboard-Skizze holen und rendern; keine lange Chat-Antwort, nur kurze Bestätigung
+        const loading = document.createElement('div');
+        loading.className = 'flex gap-3 justify-start px-1';
+        loading.innerHTML = `
+          <div class=\"max-w-[85%]\">\n            <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n            <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100\">Skizze wird erstellt…\n              <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n            </div>\n          </div>`;
+        list.appendChild(loading);
+        list.scrollTop = list.scrollHeight;
+        try {
+          const kres = await fetch('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+          loading.remove();
+          if (kres.ok) {
+            const data = await kres.json();
+            if (data?.sketch) {
+              window.renderAISketch?.(data.sketch);
+              addMessage('assistant', 'Skizze auf dem Whiteboard erstellt.');
+              history.push({ role: 'assistant', content: '[Skizze erstellt]' });
+              return;
+            }
+          }
+          addMessage('assistant', 'Konnte keine Skizze erstellen.');
+          history.push({ role: 'assistant', content: 'Konnte keine Skizze erstellen.' });
+          return;
+        } catch (err) {
+          loading.remove();
+          addMessage('assistant', 'Fehler bei der Skizze: ' + (err?.message || 'Unbekannt'));
+          history.push({ role: 'assistant', content: 'Fehler bei der Skizze' });
+          return;
+        }
+      }
+
       // Loading-Bubble (größer + Spinner)
       const loading = document.createElement('div');
       loading.className = 'flex gap-3 justify-start px-1';
@@ -345,9 +378,6 @@
         loading.remove();
         let full = '';
         if (reader) {
-          const target = document.createElement('div');
-          list.appendChild(target);
-          // Temporär: Wir tippen in einen Container hinein
           const isUser = false;
           const container = document.createElement('div');
           container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
@@ -365,19 +395,6 @@
             list.scrollTop = list.scrollHeight;
           }
           history.push({ role: 'assistant', content: full });
-
-          // Intent: Skizzieren?
-          const sketchIntent = /skizz(i|ie)re|draw|sketch/i.test(history[history.length-2]?.content || '');
-          if (sketchIntent) {
-            try {
-              const prompt = history[history.length-2]?.content || 'Skizziere etwas';
-              const kres = await fetch('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt }) });
-              if (kres.ok) {
-                const data = await kres.json();
-                if (data?.sketch) window.renderAISketch?.(data.sketch);
-              }
-            } catch {}
-          }
         }
       } catch (err) {
         loading.remove();
