@@ -19,8 +19,42 @@
 
     <!-- Rechte Seite: Chat (30%), gleiche BG, clean -->
     <aside class="w-full lg:w-[30%] bg-[#020202] flex flex-col min-h-[calc(100vh-56px)] p-4">
-      <!-- Eingabe oben (klein), um ~7.5% nach unten versetzt -->
-      <form id="chat-form" class="mb-4 mt-[7.5vh]">
+      <!-- Mini-Header über dem Input -->
+      <div class="flex items-center justify-between mb-2 mt-[6.5vh]">
+        <div class="bg-[#121318] border border-[#2a2a2a] rounded-md px-3 py-1 text-sm font-medium text-neutral-100">New Chat</div>
+        <div class="flex items-center gap-3 text-neutral-400">
+          <!-- Plus -->
+          <button type="button" class="hover:text-white focus:outline-none" aria-label="Neu">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-4 h-4">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+          <!-- History -->
+          <button type="button" class="hover:text-white focus:outline-none" aria-label="Verlauf">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-4 h-4">
+              <path d="M12 8v5l3 2"/>
+              <circle cx="12" cy="12" r="9"/>
+            </svg>
+          </button>
+          <!-- More -->
+          <button type="button" class="hover:text-white focus:outline-none" aria-label="Mehr">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <circle cx="5" cy="12" r="1.5"/>
+              <circle cx="12" cy="12" r="1.5"/>
+              <circle cx="19" cy="12" r="1.5"/>
+            </svg>
+          </button>
+          <!-- Close -->
+          <button type="button" class="hover:text-white focus:outline-none" aria-label="Schließen">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-4 h-4">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Eingabe -->
+      <form id="chat-form" class="mb-4">
         <div class="relative w-full">
           <input id="chat-input" type="text" placeholder="Nachricht an School AI..." class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 outline-none ring-2 ring-[#2f3b47] pl-3 pr-16 py-5 text-sm" />
           <!-- Bild-Icon im Feld -->
