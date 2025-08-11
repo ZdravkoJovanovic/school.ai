@@ -91,21 +91,32 @@
       <!-- Eingabe -->
       <form id="chat-form" class="mb-4">
         <div class="relative w-full">
-          <input id="chat-input" type="text" placeholder="Nachricht an School AI..." class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-[#2f3b47]  pl-3 pr-16 py-5 text-sm" />
-          <!-- Bild-Icon im Feld -->
-          <button type="button" aria-label="Bild auswählen" class="absolute right-10 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white focus:outline-none">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-5 h-5">
-              <path d="M4.5 5.5h15a1.5 1.5 0 011.5 1.5v10a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17V7a1.5 1.5 0 011.5-1.5z"/>
-              <path d="M7 14l2.2-2.2a1.5 1.5 0 012.1 0L13.5 14l1.5-1.5a1.5 1.5 0 012.1 0L19.5 15"/>
-              <circle cx="8.5" cy="9" r="1.2"/>
-            </svg>
-          </button>
-          <!-- Senden-Icon im Feld -->
-          <button type="submit" aria-label="Senden" class="absolute right-3 top-1/2 -translate-y-1/2 text-white focus:outline-none">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
-              <path d="M2.25 12l18-9-4.5 9 4.5 9-18-9z"/>
-            </svg>
-          </button>
+          <input id="chat-input" type="text" placeholder="Nachricht an School AI..." class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-[#2f3b47]  pl-3 pr-28 py-5 text-sm" />
+          <!-- Icon-Leiste rechts im Feld -->
+          <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <!-- Sketch-Toggle -->
+            <button id="btn-sketch-mode" type="button" title="Skizzieren" aria-label="Skizzieren" class="p-2 rounded-md text-neutral-300 hover:text-white hover:bg-neutral-700/40 focus:outline-none">
+              <!-- Pencil Icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-5 h-5">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
+                <path d="M14.06 6.19l1.77-1.77a1.5 1.5 0 012.12 0l1.63 1.63a1.5 1.5 0 010 2.12l-1.77 1.77"/>
+              </svg>
+            </button>
+            <!-- Bild-Icon -->
+            <button type="button" aria-label="Bild auswählen" class="p-2 rounded-md text-neutral-300 hover:text-white hover:bg-neutral-700/40 focus:outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-5 h-5">
+                <path d="M4.5 5.5h15a1.5 1.5 0 011.5 1.5v10a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17V7a1.5 1.5 0 011.5-1.5z"/>
+                <path d="M7 14l2.2-2.2a1.5 1.5 0 012.1 0L13.5 14l1.5-1.5a1.5 1.5 0 012.1 0L19.5 15"/>
+                <circle cx="8.5" cy="9" r="1.2"/>
+              </svg>
+            </button>
+            <!-- Senden -->
+            <button type="submit" aria-label="Senden" class="p-2 rounded-md text-white hover:opacity-90 focus:outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                <path d="M2.25 12l18-9-4.5 9 4.5 9-18-9z"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </form>
 
@@ -309,6 +320,14 @@
 
     // Konversationsverlauf für Backend
     const history = [];
+    let sketchMode = false;
+    const sketchBtn = document.getElementById('btn-sketch-mode');
+    function updateSketchBtn(){
+      if (!sketchBtn) return;
+      sketchBtn.classList.toggle('ring-2', sketchMode);
+      sketchBtn.classList.toggle('ring-white', sketchMode);
+    }
+    sketchBtn?.addEventListener('click', ()=>{ sketchMode = !sketchMode; updateSketchBtn(); });
 
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -321,8 +340,9 @@
       input.value = '';
       input.focus();
 
-      // Intent: Skizzieren? (DE + EN Varianten)
-      const isSketchIntent = /(skizzier|skizziere|zeichne|male|draw|sketch)/i.test(text);
+      // Sketch-Entscheidung: expliziter Toggle oder Slash-Command /sketch
+      const isSlashSketch = /^\s*\/sketch\b/i.test(text);
+      const isSketchIntent = sketchMode || isSlashSketch;
       if (isSketchIntent) {
         // Whiteboard-Skizze holen und rendern; keine lange Chat-Antwort, nur kurze Bestätigung
         const loading = document.createElement('div');
