@@ -3,7 +3,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import OpenAI from 'openai';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 
@@ -72,6 +72,20 @@ app.post('/api/uploads/presign', async (req: Request, res: Response) => {
     res.json({ url, key, bucket: S3_BUCKET });
   } catch (e:any) {
     res.status(500).json({ error: 'presign failed', detail: e?.message || e });
+  }
+});
+
+// Presign GET (temporäre Abruf-URL für private Objekte)
+app.get('/api/uploads/view-url', async (req: Request, res: Response) => {
+  try {
+    const key = String(req.query.key || '');
+    if (!key) return res.status(400).json({ error: 'key required' });
+    if (!S3_BUCKET || !S3_REGION) return res.status(500).json({ error: 'AWS_S3_BUCKET oder AWS_REGION fehlt' });
+    const cmd = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
+    const url = await getSignedUrl(getS3(), cmd, { expiresIn: 60 });
+    res.json({ url });
+  } catch (e:any) {
+    res.status(500).json({ error: 'view presign failed', detail: e?.message || e });
   }
 });
 

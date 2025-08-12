@@ -38,7 +38,11 @@
         statusEl.textContent = 'Lade hoch…';
         const put = await fetch(url, { method:'PUT', headers: { 'Content-Type': file.type }, body: file });
         if(!put.ok){ throw new Error('Upload fehlgeschlagen'); }
-        statusEl.textContent = 'Fertig! Gespeichert als ' + key;
+        // optional: Presigned GET zum Testen anzeigen
+        const view = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
+        let link = '';
+        if(view.ok){ const j = await view.json(); link = j.url; }
+        statusEl.innerHTML = 'Fertig! Gespeichert als ' + key + (link? ` – <a class="underline" href="${link}" target="_blank">Ansehen</a>` : '');
       }catch(e){
         statusEl.textContent = 'Fehler: ' + (e?.message || e);
       }finally{
