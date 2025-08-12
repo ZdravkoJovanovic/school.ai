@@ -8,6 +8,7 @@ config();
 
 const app = express();
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
+const HOST: string = (process.env.HOST || '0.0.0.0').trim();
 
 // OpenAI Client lazy init
 function getOpenAIClient(): OpenAI {
@@ -249,6 +250,6 @@ Vorgaben:
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server läuft auf http://localhost:${PORT}`);
+app.listen(PORT, HOST as any, () => {
+  console.log(`Server läuft auf http://${HOST}:${PORT}`);
 });
