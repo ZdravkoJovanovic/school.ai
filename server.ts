@@ -52,6 +52,11 @@ app.get('/', (req: Request, res: Response) => {
   res.render('index');
 });
 
+// Neue Route: /folder (nur Navbar + gleiche BG)
+app.get('/folder', (req: Request, res: Response) => {
+  res.render('folder');
+});
+
 // Chat Endpoint (non-streaming)
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {

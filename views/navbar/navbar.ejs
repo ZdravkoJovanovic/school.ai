@@ -21,8 +21,23 @@
       </div>
     </div>
 
-    <!-- Right: Settings ganz rechts -->
-    <div class="flex-1 flex justify-end">
+    <!-- Right: Actions -->
+    <div class="flex-1 flex justify-end items-center gap-3">
+      <!-- Chat AI (zur Startseite /) -->
+      <a href="/" aria-label="Chat AI" class="p-1 text-neutral-300 hover:text-white focus:outline-none">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5" stroke-width="1.6">
+          <path d="M12 3v18M5 12h14"/>
+        </svg>
+      </a>
+
+      <!-- Folder (zur /folder Seite) -->
+      <a href="/folder" aria-label="Folder" class="p-1 text-neutral-300 hover:text-white focus:outline-none">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5" stroke-width="1.6">
+          <path d="M3 7.5h6l1.8 2H21v7.5A1.5 1.5 0 0119.5 18h-15A1.5 1.5 0 013 16.5V7.5z"/>
+        </svg>
+      </a>
+
+      <!-- Settings ganz rechts -->
       <button aria-label="Einstellungen" class="p-1 text-neutral-300 hover:text-white focus:outline-none">
         <!-- Simple Cog (sauberes Icon) -->
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-5 h-5">
