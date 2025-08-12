@@ -3,6 +3,9 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import OpenAI from 'openai';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { randomUUID } from 'crypto';
 
 config();
 
@@ -48,6 +51,34 @@ app.set('views', path.join(process.cwd(), 'views'));
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(process.cwd(), 'public')));
+
+// S3 Setup
+const S3_REGION = process.env.AWS_REGION || '';
+const S3_BUCKET = process.env.AWS_S3_BUCKET || '';
+let s3Client: S3Client | null = null;
+function getS3(){
+  if (!s3Client) s3Client = new S3Client({ region: S3_REGION });
+  return s3Client;
+}
+
+// Presign Upload (Direct Upload vom Browser via fetch/PUT)
+app.post('/api/uploads/presign', async (req: Request, res: Response) => {
+  try {
+    const { contentType } = req.body as { contentType: string };
+    if (!S3_BUCKET || !S3_REGION) return res.status(500).json({ error: 'AWS_S3_BUCKET oder AWS_REGION fehlt' });
+    const key = `uploads/${randomUUID()}`;
+    const cmd = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: contentType || 'application/octet-stream' });
+    const url = await getSignedUrl(getS3(), cmd, { expiresIn: 60 });
+    res.json({ url, key, bucket: S3_BUCKET });
+  } catch (e:any) {
+    res.status(500).json({ error: 'presign failed', detail: e?.message || e });
+  }
+});
+
+// Placeholder: Upload-Liste (später aus Postgres)
+app.get('/api/uploads', async (_req: Request, res: Response) => {
+  res.json({ items: [] });
+});
 
 app.get('/', (req: Request, res: Response) => {
   res.render('index');

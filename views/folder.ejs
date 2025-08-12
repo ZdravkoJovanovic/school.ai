@@ -9,7 +9,43 @@
 <body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
   <%- include('navbar/navbar') %>
   <!-- Restfläche exakt gleiche BG wie Navbar -->
-  <main class="w-full h-[calc(100vh-56px)] bg-[#020202]"></main>
+  <main class="w-full h-[calc(100vh-56px)] bg-[#020202] p-4">
+    <div class="max-w-xl">
+      <input id="file-input" type="file" accept="image/*" class="hidden" />
+      <button id="btn-upload" class="px-4 py-2 rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-100 hover:bg-neutral-700 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5" stroke-width="1.6">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Lehr Blatt Hochladen
+      </button>
+      <div id="upload-status" class="mt-3 text-sm text-neutral-400"></div>
+    </div>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const btn = document.getElementById('btn-upload');
+    const statusEl = document.getElementById('upload-status');
+    btn?.addEventListener('click', ()=> fileInput?.click());
+    fileInput?.addEventListener('change', async ()=>{
+      const file = fileInput.files?.[0];
+      if(!file) return;
+      statusEl.textContent = 'Bereite Upload vor…';
+      try{
+        const pres = await fetch('/api/uploads/presign', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contentType: file.type }) });
+        if(!pres.ok){ throw new Error('Presign fehlgeschlagen'); }
+        const { url, key } = await pres.json();
+        statusEl.textContent = 'Lade hoch…';
+        const put = await fetch(url, { method:'PUT', headers: { 'Content-Type': file.type }, body: file });
+        if(!put.ok){ throw new Error('Upload fehlgeschlagen'); }
+        statusEl.textContent = 'Fertig! Gespeichert als ' + key;
+      }catch(e){
+        statusEl.textContent = 'Fehler: ' + (e?.message || e);
+      }finally{
+        fileInput.value = '';
+      }
+    });
+  </script>
 </body>
 </html>
 
