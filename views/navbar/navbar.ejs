@@ -6,13 +6,13 @@
     </div>
 
     <!-- Center: Search zentriert -->
-    <div class="flex-1 flex justify-center">
+    <div class="flex-1 hidden lg:flex justify-center">
       <div class="w-full max-w-md">
         <div class="relative">
           <input
             type="text"
             placeholder="Suchen..."
-            class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 pl-8 pr-3 py-1 outline-none ring-2 ring-[#2f3b47] ring-2 ring-[#2f3b47]"
+            class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 pl-8 pr-3 py-1 outline-none ring-2 ring-[#2f3b47]"
           />
           <svg class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
@@ -48,3 +48,18 @@
     </div>
   </div>
 </nav>
+
+<!-- Mobile Search (unter der Navbar) -->
+<div class="lg:hidden w-[90%] mx-[5%] mt-2">
+  <div class="relative">
+    <input
+      type="text"
+      placeholder="Suchen..."
+      class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 pl-8 pr-3 py-2 outline-none ring-2 ring-[#2f3b47]"
+    />
+    <svg class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+    </svg>
+  </div>
+  
+</div>
