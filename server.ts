@@ -127,6 +127,54 @@ app.post('/api/sketch', async (req: Request, res: Response) => {
 
     const openai = getOpenAIClient();
 
+    async function chatJSON(system: string, user: string): Promise<any> {
+      const r = await openai.chat.completions.create({ model: MODEL, messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user }
+      ]});
+      const content = r.choices?.[0]?.message?.content ?? '';
+      try { return JSON.parse(content); } catch { return { raw: content }; }
+    }
+
+    async function genAufgabe(p: string): Promise<string> {
+      const sys = `Gib AUSSCHLIESSLICH JSON: {"aufgabe": string}.
+Schreibe eine realistische, einfache Klausur-Aufgabe (3-6 ganze Sätze) zum Thema Zinsrechnung.
+Erkläre kurz die Begriffe in Worten (K0 Startbetrag, p Zinssatz/Jahr, t Laufzeit in Jahren, optional m Perioden/Jahr).
+Nenne gegebene Werte textlich, aber KEINE Rechnung/KEIN Ergebnis.`;
+      for (let i=0;i<2;i++){
+        const j = await chatJSON(sys, `Thema: ${p}`);
+        const s = (j?.aufgabe || '').toString().trim();
+        if (s.length > 60) return s;
+      }
+      return 'Aufgabe: Du erhältst eine typische Zins-Aufgabe. Formuliere Werte und Ziel ohne zu rechnen.';
+    }
+
+    async function genLoesung(aufgabe: string): Promise<{schritte: string[]; ergebnis?: string}> {
+      const sys = `Gib JSON: {"schritte": string[], "ergebnis"?: string}.
+Formuliere eine Lösung in 5-9 einfachen Schritten (ganze Sätze + Formeln). Nutze Standard-Notation (K0, i=p/100, t in Jahren, Kn=K0*(1+i)^n bzw. Z=K0*i*t bei einfacher Verzinsung). Runden am Ende. Einheit nennen.`;
+      const j = await chatJSON(sys, aufgabe);
+      const arr = Array.isArray(j?.schritte) ? j.schritte.map((x: any)=> String(x)).filter(Boolean) : [];
+      return { schritte: arr.slice(0, 9), ergebnis: (j?.ergebnis? String(j.ergebnis) : undefined) };
+    }
+
+    async function review(aufgabe: string, loesung: string[]): Promise<{ok:boolean;hint?:string}> {
+      const sys = `Beurteile knapp, ob Lösung zur Aufgabe passt und vollständig ist (5-9 Schritte, Formeln+Einsetzen, Ergebnis mit Einheit). Antworte nur als JSON: {"ok": boolean, "hint"?: string}.`;
+      const j = await chatJSON(sys, `Aufgabe:\n${aufgabe}\nLösung:\n${loesung.join('\n')}`);
+      return { ok: Boolean(j?.ok), hint: j?.hint ? String(j.hint) : undefined };
+    }
+
+    function buildExamLayer(aufgabe: string, loesung: string[]): any {
+      const aText = `Aufgabe: ${aufgabe}`;
+      const lText = `Lösung:\n${loesung.join('\n')}`;
+      return {
+        name: 'Klausurbeispiel',
+        strokes: [
+          { type: 'text', position: [0.82, 0.10], text: aText, size: 0.032, color: '#ffffff' },
+          { type: 'text', position: [0.82, 0.58], text: lText, size: 0.032, color: '#ffffff' },
+        ]
+      };
+    }
+
     const system = `Du bist ein Zeichenassistent für Unterricht im Notizblatt-Stil. Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, keine Erklärsätze.
 Schema:
 {
@@ -174,26 +222,17 @@ Vorgaben:
     const hasExamLayer = Array.isArray(sketch?.layers) && sketch.layers.some((l: any)=> /klausur|beispiel/i.test(String(l?.name||'')));
     if (!hasExamLayer) {
       try {
-        const forceExamSystem = `Gib ein JSON mit GENAU einer Layer "Klausurbeispiel" passend zum Thema.
-Schema:
-{"layers":[{"name":"Klausurbeispiel","strokes":[{"type":"text","position":[x,y],"text":"Aufgabe: …"},{"type":"text","position":[x,y],"text":"Lösung: …"}]}]}
-Vorgaben:
-- Nur TEXT-Strokes; keine Pfade/Kreise.
-- Aufgabe: 3–6 ganze, einfache Sätze; erkläre kurz Begriffe (K0 Startbetrag, p Zinssatz, t Laufzeit …); nenne gegebene Werte; sage, was berechnet werden soll; KEIN Ergebnis.
-- Lösung: 5–9 Schritte, kurze Sätze + Formelzeilen; Einsetzen, Rechnen, Ergebnis mit Einheit.`;
-        const examOnly = await openai.chat.completions.create({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: forceExamSystem },
-            { role: 'user', content: `Erzeuge Klausurbeispiel passend zum Thema: ${prompt}` },
-          ],
-        });
-        const c2 = examOnly.choices?.[0]?.message?.content ?? '';
-        const s2 = JSON.parse(c2);
-        if (Array.isArray(s2?.layers)) {
-          // Merge: vorhandene Inhalte + Klausurbeispiel anhängen
-          sketch.layers = Array.isArray(sketch.layers) ? [...sketch.layers, ...s2.layers] : s2.layers;
+        const aufgabe = await genAufgabe(prompt);
+        let { schritte } = await genLoesung(aufgabe);
+        // Review/Refine bis zu 1x
+        const r = await review(aufgabe, schritte);
+        if (!r.ok && r.hint) {
+          const sysFix = `Verbessere die Lösung anhand der Hinweise. Gib JSON: {"schritte": string[]}`;
+          const fixed = await chatJSON(sysFix, `Aufgabe:\n${aufgabe}\nLösung bisher:\n${schritte.join('\n')}\nHinweise:\n${r.hint}`);
+          if (Array.isArray(fixed?.schritte) && fixed.schritte.length) schritte = fixed.schritte.map((x: any)=> String(x));
         }
+        const layer = buildExamLayer(aufgabe, schritte);
+        sketch.layers = Array.isArray(sketch.layers) ? [...sketch.layers, layer] : [layer];
       } catch {}
     }
     res.json({ sketch });
