@@ -1,8 +1,20 @@
 import type { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface InitSocketsOptions {
 	origin?: string | string[];
+}
+
+// Frame-Speicherung
+const FRAMES_DIR = path.join(__dirname, 'link-frames');
+const FRAME_INTERVAL = 500; // 2 FPS
+
+// Ordner sicher erstellen
+if (!fs.existsSync(FRAMES_DIR)) {
+  fs.mkdirSync(FRAMES_DIR, { recursive: true });
 }
 
 /**
@@ -24,6 +36,30 @@ export function initSockets(httpServer: HttpServer, options?: InitSocketsOptions
 
 	io.engine.on('connection', (rawSocket: any) => {
 		try { console.log('🔎 [SOCKET] Engine connection from', rawSocket?.request?.headers?.origin || rawSocket?.request?.socket?.remoteAddress); } catch {}
+	});
+
+	// Video-Namespace
+	io.of('/video').on('connection', (socket: Socket) => {
+	  const sessionId = uuidv4();
+	  let frameCount = 0;
+
+	  console.log(`📹 Video-Session gestartet: ${sessionId}`);
+
+	  socket.on('video_frame', (data: { frame: string }) => {
+		const timestamp = Date.now();
+		const filename = `frame_${sessionId}_${timestamp}_${frameCount++}.jpg`;
+
+		fs.writeFile(
+		  path.join(FRAMES_DIR, filename),
+		  data.frame.replace(/^data:image\/\w+;base64,/, ''),
+		  'base64',
+		  (err) => err && console.error('Frame speichern fehlgeschlagen:', err)
+		);
+	  });
+
+	  socket.on('disconnect', () => {
+		console.log(`📹 Video-Session beendet: ${sessionId}`);
+	  });
 	});
 
 	ns.on('connection', (socket: Socket) => {
