@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+  <title>ClassLink – Whiteboard</title>
+  <link href="/styles.css" rel="stylesheet">
+  <style>
+    .wb-grid { background-color: #121318; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-position: 0 0, 0 0; }
+    .wb-bg { background-color: #121318; }
+    :root { --vh: 1vh; --app-top: 56px; }
+    @supports (height: 100dvh) { .app-viewport { height: calc(100dvh - var(--app-top)); } }
+    @supports not (height: 100dvh) { .app-viewport { height: calc(var(--vh, 1vh) * 100 - var(--app-top)); } }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="/ws/socket.io.js"></script>
+  <script src="/vendor/html5-qrcode.min.js"></script>
+  <script>
+    (function(){
+      function setVh(){ document.documentElement.style.setProperty('--vh', (window.innerHeight*0.01) + 'px'); }
+      setVh(); window.addEventListener('resize', setVh); window.addEventListener('orientationchange', setVh);
+    })();
+  </script>
+</head>
+<body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
+  <%- include('navbar/navbar', { currentRoute: '/real-time-class-link-sw' }) %>
+
+  <div class="app-viewport min-h-0 w-full p-4">
+    <!-- Mobile: QR-Scan UI -->
+    <div id="mobile-qr" class="md:hidden w-full h-full flex flex-col items-center justify-start gap-4 p-4 text-neutral-200">
+      <div id="qr-value" class="text-white text-base font-medium hidden"></div>
+      <div id="qr-video-wrap" class="w-full max-w-md rounded-md overflow-hidden hidden">
+        <div id="qr-reader" class="w-full h-full"></div>
+      </div>
+      <canvas id="qr-canvas" class="hidden"></canvas>
+      <div id="qr-perm-hint" class="text-neutral-400 text-xs hidden text-center">
+        Bitte erlaube den Kamera‑Zugriff im System‑Dialog. Tippe erneut auf „QR scannen“ und wähle „Zulassen“.
+      </div>
+      <input id="qr-file" type="file" accept="image/*" capture="environment" class="hidden" />
+    </div>
+    <!-- Desktop: zwei gleich große Flächen, zentriert, 12px Abstand -->
+    <div id="wb-host" class="hidden md:flex w-full h-full items-center justify-center gap-3">
+      <div id="wb-container" class="wb-grid"></div>
+      <div id="wb-companion" class="wb-bg relative overflow-hidden">
+        <div id="comp-footer" class="absolute left-0 right-0 bottom-0">
+          <div class="w-full h-full">
+            <div class="px-5 pt-4">
+              <div class="border-t border-white"></div>
+            </div>
+          </div>
+          <div id="qr-box" class="absolute"></div>
+          <div id="status-box" class="absolute flex flex-col items-stretch"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      // Gewünschte Blockanzahl (nur Desktop sichtbar)
+      const BLOCKS_X = 31;
+      const BLOCKS_Y = 59;
+
+      // Wenn mobil: QR-Scanner-Flow aktivieren und Whiteboard-Init überspringen
+      if (window.innerWidth < 768){
+        const out = document.getElementById('qr-value');
+        const fileInput = document.getElementById('qr-file');
+        let socket = null; let lastSid = null;
+
+        function connectMobileSocket(sid){
+          try{
+            if (!window.io) { console.warn('Socket.IO client missing'); return; }
+            // immer auf neues SID wechseln
+            if (socket){ try { socket.disconnect(); } catch {} socket = null; }
+            lastSid = sid;
+            socket = io('/classlink', {
+              path: '/ws',
+              transports: ['websocket'],
+              auth: { role: 'mobile', sid }
+            });
+            socket.on('connect', ()=>{ console.log('socket connected'); });
+            socket.on('connect_error', (e)=>{ console.error('Socket connect_error', e); });
+            socket.on('disconnect', ()=>{ console.log('socket disconnected'); });
+          }catch(e){ console.error('Socket init error', e); }
+        }
+
+        // Auto-Connect on mobile (default SID)
+        connectMobileSocket('2BS4hd&G'); // Default SID for auto-connect
+        return;
+      }
+
+      // Desktop: Auto-Connect beibehalten (damit du Live-Status siehst)
+      try {
+        const deskSocket = io('/classlink', { path: '/ws', transports: ['websocket'], auth: { role: 'desktop', sid: '2BS4hd&G' } });
+        deskSocket.on('connect', ()=>{ if (window.classLinkSetConnection) window.classLinkSetConnection(true); });
+        deskSocket.on('disconnect', ()=>{ if (window.classLinkSetConnection) window.classLinkSetConnection(false); });
+      } catch (e) { /* ignore */ }
+
+      const host = document.getElementById('wb-host');
+      const container = document.getElementById('wb-container');
+      const companion = document.getElementById('wb-companion');
+      if(!host || !container || !companion) return;
+
+      // Canvas erstellen (ohne Rundungen)
+      const canvas = document.createElement('canvas');
+      canvas.id = 'wb';
+      canvas.className = '';
+      container.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+
+      function layout(){
+        const rect = host.getBoundingClientRect();
+        const gapPx = 12; // ~1cm optischer Abstand
+        // Blockgröße so wählen, dass zwei Boards + Gap in Breite passen und Höhe 59 Blöcke bleibt
+        const maxByWidth = (rect.width - gapPx) / (2 * BLOCKS_X);
+        const maxByHeight = rect.height / BLOCKS_Y;
+        const block = Math.max(6, Math.floor(Math.min(maxByWidth, maxByHeight)));
+        const widthPx = block * BLOCKS_X;
+        const heightPx = block * BLOCKS_Y;
+
+        // Beide Container auf identische Größe setzen
+        [container, companion].forEach(el=>{
+          el.style.width = widthPx + 'px';
+          el.style.height = heightPx + 'px';
+          el.style.backgroundSize = block + 'px ' + block + 'px';
+        });
+
+        // Canvas-Dimensionen (mit DPR)
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(widthPx * dpr);
+        canvas.height = Math.floor(heightPx * dpr);
+        canvas.style.width = widthPx + 'px';
+        canvas.style.height = heightPx + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        // Footer (~20% Höhe) + QR Code & Status-Spiegel (größer wie zuvor)
+        const footer = document.getElementById('comp-footer');
+        const qrBox = document.getElementById('qr-box');
+        const statusBox = document.getElementById('status-box');
+        if (footer && qrBox){
+          const footerH = Math.max(24, Math.floor(heightPx * 0.20));
+          footer.style.height = footerH + 'px';
+          const qrSize = Math.max(48, Math.min(footerH - 12, Math.floor(widthPx * 0.25)));
+          // Text statt QR-Code anzeigen (fett, weiß) – zentriert in einem definierten Bereich
+          qrBox.style.width = Math.floor(widthPx * 0.42) + 'px';
+          qrBox.style.height = 'auto';
+          qrBox.style.display = 'flex';
+          qrBox.style.alignItems = 'center';
+          qrBox.style.justifyContent = 'flex-start';
+          qrBox.style.textAlign = 'left';
+          qrBox.style.color = '#ffffff';
+          qrBox.style.fontWeight = '700';
+          qrBox.style.letterSpacing = '1px';
+          qrBox.style.fontFamily = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial";
+          // Maximal Textgröße: Tailwind 3xl ≈ 1.875rem (30px)
+          qrBox.style.fontSize = '1.875rem';
+          qrBox.textContent = '2BS4hd&G';
+          const halfPad = Math.max(8, Math.floor(footerH * 0.2)); // halber Abstand
+          qrBox.style.left = (halfPad + 35) + 'px';
+          qrBox.style.bottom = (halfPad + Math.floor(footerH * 0.5)) + 'px';
+          // QR-Grafik entfällt bewusst
+
+          // Status-Panel spiegeln (rechts, gleiche vertikale Ausrichtung wie QR)
+          if (statusBox){
+            const panelW = Math.max(qrSize * 1.6, 180);
+            const panelX = widthPx - panelW - (halfPad + 6);
+            statusBox.style.width = panelW + 'px';
+            statusBox.style.left = panelX + 'px';
+            statusBox.style.bottom = halfPad + 'px';
+
+            // Inhalte (ohne BG, weiße Schrift, graue Unterline, mittig)
+            statusBox.innerHTML = `
+              <div class="text-white border-b border-neutral-500/60 py-2 text-center select-none">
+                connection: <span id="conn-code" class="text-red-500">400 BAD</span>
+              </div>
+              <div id="devices-row" class="text-white border-b border-neutral-500/60 py-2 text-center select-none">
+                connected devices: <span id="conn-dev" class="text-white">0</span>
+              </div>
+              <div class="py-2 text-center select-none">
+                <button id="conn-toggle" disabled aria-disabled="true" class="w-full px-4 py-1 rounded-md bg-neutral-600/60 text-neutral-300 border border-neutral-500/60 text-sm font-medium cursor-not-allowed">Start</button>
+              </div>
+            `;
+
+            // Default-Logik (nur UI-Dummy)
+            const btn = statusBox.querySelector('#conn-toggle');
+            const code = statusBox.querySelector('#conn-code');
+            const dev = statusBox.querySelector('#conn-dev');
+            let started = false; let devices = 0; // 0 oder 1
+
+            function setButtonEnabled(enabled){
+              if (!btn) return;
+              btn.disabled = !enabled;
+              btn.setAttribute('aria-disabled', String(!enabled));
+              if (enabled){
+                btn.className = 'w-full px-4 py-1 rounded-md bg-white text-black border border-[#2a2a2a] text-sm font-medium';
+                btn.classList.remove('cursor-not-allowed');
+              } else {
+                btn.className = 'w-full px-4 py-1 rounded-md bg-neutral-600/60 text-neutral-300 border border-neutral-500/60 text-sm font-medium cursor-not-allowed';
+              }
+            }
+
+            function setConnection(ok){
+              if (code){
+                if (ok){ code.textContent = '200 OK'; code.classList.remove('text-red-500'); code.classList.add('text-green-400'); }
+                else { code.textContent = '400 BAD'; code.classList.remove('text-green-400'); code.classList.add('text-red-500'); }
+              }
+              setButtonEnabled(ok);
+            }
+
+            // Button-Click tut nichts, wenn disabled; Start/Stop ändert NICHT den Verbindungsstatus
+            btn?.addEventListener('click', ()=>{
+              if (btn.disabled) return;
+              started = !started;
+              btn.textContent = started ? 'Stop' : 'Start';
+              if (dev) dev.textContent = String(devices);
+            });
+
+            // Initialzustand: keine Verbindung → Button grau/disabled
+            setConnection(false);
+            // Für spätere WebSocket-Logik erreichbar machen
+            window.classLinkSetConnection = setConnection;
+
+            // Linken Wert vertikal an "connected devices" ausrichten (mit eigener Höhe)
+            const alignLeftValue = () => {
+              try {
+                const devicesRow = statusBox.querySelector('#devices-row');
+                if (!devicesRow) return;
+                const footerRect = footer.getBoundingClientRect();
+                const rowRect = devicesRow.getBoundingClientRect();
+                const qrRect = qrBox.getBoundingClientRect();
+                const targetCenterY = rowRect.top + (rowRect.height / 2);
+                const bottomFromFooter = Math.max(0, Math.round(footerRect.bottom - targetCenterY - (qrRect.height / 2)));
+                qrBox.style.bottom = bottomFromFooter + 'px';
+              } catch {}
+            };
+            alignLeftValue();
+            requestAnimationFrame(alignLeftValue);
+            setTimeout(alignLeftValue, 50);
+          }
+        }
+      }
+
+      window.addEventListener('resize', layout);
+      layout();
+
+      // Einfaches Zeichnen (Maus/Touch)
+      let drawing = false; let lx=0, ly=0;
+      function start(x,y){ drawing=true; lx=x; ly=y; }
+      function move(x,y){ if(!drawing) return; ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(x,y); ctx.stroke(); lx=x; ly=y; }
+      function end(){ drawing=false; }
+
+      canvas.addEventListener('mousedown', e=> start(e.offsetX, e.offsetY));
+      canvas.addEventListener('mousemove', e=> move(e.offsetX, e.offsetY));
+      window.addEventListener('mouseup', end);
+      canvas.addEventListener('mouseleave', end);
+
+      canvas.addEventListener('touchstart', e=>{ const t=e.touches[0]; const r=canvas.getBoundingClientRect(); start(t.clientX-r.left, t.clientY-r.top); e.preventDefault(); }, {passive:false});
+      canvas.addEventListener('touchmove', e=>{ const t=e.touches[0]; const r=canvas.getBoundingClientRect(); move(t.clientX-r.left, t.clientY-r.top); e.preventDefault(); }, {passive:false});
+      canvas.addEventListener('touchend', end);
+    })();
+  </script>
+</body>
+</html>
+
+

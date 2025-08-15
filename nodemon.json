@@ -1,0 +1,7 @@
+{
+  "watch": ["server.ts", "server.socket.ts"],
+  "ext": "ts,json",
+  "ignore": ["public/*", "views/*", "dist/*"]
+}
+
+

@@ -7,50 +7,862 @@
   <link href="/styles.css" rel="stylesheet" />
 </head>
 <body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
-  <%- include('navbar/navbar') %>
+  <%- include('navbar/navbar', { currentRoute: '/folder' }) %>
+  
+  <!-- Mobile Suchleiste (nur auf kleinen Bildschirmen sichtbar) -->
+  <div class="w-full bg-[#020202] px-4 py-2 md:hidden">
+    <div class="w-[90%] mx-auto">
+      <div class="relative">
+        <input
+          type="text"
+          placeholder="Suchen..."
+          class="w-full rounded-md bg-[#0f0f0f] text-neutral-100 placeholder-neutral-500 pl-8 pr-3 py-2 outline-none ring-1 ring-[#2f3b47] focus:ring-[#75D0E6] transition-colors"
+        />
+        <svg class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+        </svg>
+      </div>
+      <!-- Upload-Button Mobile, UI wie Suchfeld -->
+      <div class="mt-2">
+        <button id="btn-upload-mobile" class="w-full rounded-md bg-white text-black pl-3 pr-3 py-2 border border-neutral-200 hover:bg-neutral-50 transition text-left flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5" stroke-width="1.6">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Lehr Blatt Hochladen
+        </button>
+      </div>
+    </div>
+  </div>
+  
   <!-- Restfläche exakt gleiche BG wie Navbar -->
-  <main class="w-full h-[calc(100vh-56px)] bg-[#020202] p-4">
+  <main class="w-full h-[calc(100vh-56px)] md:h-[calc(100vh-56px)] bg-[#020202] p-4">
     <div class="max-w-xl">
       <input id="file-input" type="file" accept="image/*" class="hidden" />
-      <button id="btn-upload" class="px-4 py-2 rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-100 hover:bg-neutral-700 flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5" stroke-width="1.6">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        Lehr Blatt Hochladen
-      </button>
-      <div id="upload-status" class="mt-3 text-sm text-neutral-400"></div>
+      <!-- Ordner-/Dateiliste (mobile first) -->
+      <div class="mt-3">
+        <div id="folder-list" class="md:max-w-md"></div>
+        <div id="file-list" class="md:max-w-md hidden"></div>
+      </div>
+
+      <div class="hidden md:flex gap-3 mt-4">
+        <button id="btn-upload" class="px-4 py-2 rounded-md bg-white text-black border border-neutral-200 hover:bg-neutral-50 transition flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-5 h-5" stroke-width="1.6">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Lehr Blatt Hochladen
+        </button>
+        
+        
+      </div>
+      
+      <div id="upload-status" class="mt-3 text-sm text-neutral-200"></div>
     </div>
   </main>
 
+  <!-- Mobile Settings Drawer -->
+  <div id="mobile-drawer" class="fixed inset-0 z-50 md:hidden hidden">
+    <div id="drawer-overlay" class="absolute inset-0 bg-black/40"></div>
+    <aside class="absolute right-0 top-0 h-full w-[70vw] max-w-sm bg-white text-neutral-900 border-l border-neutral-200 flex flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+        <div class="text-sm">Einstellungen</div>
+        <button id="drawer-close" aria-label="Schließen" class="p-1 text-black hover:opacity-80">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5 text-black"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 text-sm">
+        <!-- Platz für spätere Einstellungen -->
+      </div>
+      <div class="p-4 border-t border-neutral-200">
+        <button id="drawer-test" class="w-full px-4 py-2 rounded-md bg-black text-white hover:opacity-90">Verbindung testen</button>
+        <div id="drawer-status" class="mt-2 text-sm text-neutral-700"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Modal: Mappe auswählen (Mobile-First) -->
+  <div id="select-folder-modal" class="fixed inset-0 z-[58] hidden">
+    <div id="sf-overlay" class="absolute inset-0 bg-black/40"></div>
+    <div class="absolute inset-0 p-[5%] flex items-center justify-center overflow-hidden">
+      <div class="w-full max-w-xl rounded-2xl border border-neutral-700 bg-[#050505] text-white shadow-xl flex flex-col max-h-[80vh]">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
+          <h2 class="text-xl font-semibold">In Mappe speichern</h2>
+          <button id="sf-close" aria-label="Schließen" class="p-1 text-white hover:opacity-80">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto">
+          <div id="sf-list" class="space-y-2"></div>
+          <div id="sf-empty" class="hidden text-sm text-neutral-400">Keine Mappen vorhanden. Erstelle zuerst eine Mappe.</div>
+        </div>
+        <div class="mt-auto px-6 py-4 bg-black/90 rounded-b-2xl flex items-center justify-end gap-2">
+          <button id="sf-cancel" class="px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-sm">Abbrechen</button>
+          <button id="sf-save" class="px-4 py-2 rounded-md bg-white text-black text-sm disabled:opacity-50" disabled>Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vollbild-Modal: Mappe erstellen (Mobile-First, auch Desktop nutzbar) -->
+  <div id="create-folder-modal" class="fixed inset-0 z-[60] hidden">
+    <div id="cf-bg" class="absolute inset-0 bg-[#0b0b0b]"></div>
+    <div class="absolute inset-0 p-[5%] flex items-center justify-center overflow-hidden">
+      <div class="w-full max-w-xl rounded-2xl border border-neutral-700 bg-[#050505] text-white shadow-xl flex flex-col max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
+          <h2 class="text-xl font-semibold">Erstelle eine Mappe</h2>
+          <button id="cf-close" aria-label="Schließen" class="p-1 text-white hover:opacity-80">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="px-6 py-5 overflow-y-auto">
+          <p class="text-sm text-neutral-400 mb-4">Lege Mappen für deine Schulfächer an. So behältst du Fotos, Arbeitsblätter und Mitschriften strukturiert bei dir. Beginne mit einer Mappe pro Fach oder Thema.</p>
+
+          <label class="block text-sm text-neutral-300 mb-1">Ordnername</label>
+          <input id="cf-name" class="w-full rounded-md px-3 py-2 mb-4 outline-none bg-[#0f0f0f] text-neutral-100 border border-neutral-700 focus:ring-2 focus:ring-neutral-500" placeholder="z. B. mathe-1" />
+
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-sm text-neutral-300">Shared</div>
+            <button id="cf-shared" type="button" role="switch" aria-checked="false" class="relative w-11 h-6 rounded-full bg-neutral-600 transition">
+              <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-neutral-300 shadow transition-transform"></span>
+            </button>
+          </div>
+          <p class="text-xs text-neutral-500 mb-2">Wenn aktiviert, können Klassenmitglieder diese Mappe sehen, aber nicht bearbeiten.</p>
+        </div>
+        <div class="mt-auto px-6 py-4 bg-black/90 rounded-b-2xl flex items-center justify-between">
+          <a href="https://www.tiktok.com/" target="_blank" class="px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-sm">Follow updates</a>
+          <button id="cf-submit" class="px-4 py-2 rounded-md bg-white text-black text-sm disabled:opacity-50" disabled>Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const fileInput = document.getElementById('file-input');
-    const btn = document.getElementById('btn-upload');
+    const btnUpload = document.getElementById('btn-upload');
+    const btnTest = document.getElementById('btn-test');
+    const drawer = document.getElementById('mobile-drawer');
+    const drawerOverlay = document.getElementById('drawer-overlay');
+    const drawerClose = document.getElementById('drawer-close');
+    const drawerTest = document.getElementById('drawer-test');
+    const drawerStatus = document.getElementById('drawer-status');
+    // Create-folder modal elements
+    const cfModal = document.getElementById('create-folder-modal');
+    const cfClose = document.getElementById('cf-close');
+    const cfName = document.getElementById('cf-name');
+    const cfShared = document.getElementById('cf-shared');
+    const cfSubmit = document.getElementById('cf-submit');
     const statusEl = document.getElementById('upload-status');
-    btn?.addEventListener('click', ()=> fileInput?.click());
-    fileInput?.addEventListener('change', async ()=>{
-      const file = fileInput.files?.[0];
-      if(!file) return;
-      statusEl.textContent = 'Bereite Upload vor…';
+    const folderList = document.getElementById('folder-list');
+    const fileList = document.getElementById('file-list');
+    // Select-folder modal elements
+    const sfModal = document.getElementById('select-folder-modal');
+    const sfList = document.getElementById('sf-list');
+    const sfEmpty = document.getElementById('sf-empty');
+    const sfClose = document.getElementById('sf-close');
+    const sfCancel = document.getElementById('sf-cancel');
+    const sfSave = document.getElementById('sf-save');
+    let sfSelected = null; // chosen folder for upload
+    let currentFolder = null;
+    // UI Renderer
+    function gradientStyleForName(name){
+      try {
+        const base = Array.from(String(name||''))
+          .reduce((acc, ch)=> (acc + ch.charCodeAt(0) * 17) % 360, 0);
+        const h1 = base;
+        const h2 = (base + 120) % 360;
+        const h3 = (base + 240) % 360;
+        return `background: linear-gradient(135deg, hsl(${h1} 90% 55%), hsl(${h2} 90% 55%), hsl(${h3} 90% 55%))`;
+      } catch { return 'background: linear-gradient(135deg, #ff7eb3, #7afcff, #feff9c)'; }
+    }
+
+    function renderFolders(folders){
+      if (!folderList) return;
+      if (!Array.isArray(folders) || !folders.length){
+        folderList.innerHTML = '<div class="text-sm text-neutral-300">Keine Ordner vorhanden.</div>';
+        return;
+      }
+      folderList.innerHTML = '';
+      folders.forEach(f=>{
+        const style = gradientStyleForName(f.name);
+        const count = Number(f.count||0);
+        const item = document.createElement('div');
+        item.className = 'folder-item';
+        item.setAttribute('data-folder', f.name);
+
+        const actions = document.createElement('div');
+        actions.className = 'absolute inset-y-0 right-0 flex items-stretch md:hidden';
+        actions.style.zIndex = '5';
+        actions.innerHTML = `
+          <button type="button" class="px-3 py-2 min-w-[72px] bg-black text-white text-xs rounded-l-xl flex flex-col items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+            <span class="mt-0.5">Mehr</span>
+          </button>
+          <button type="button" class="px-3 py-2 min-w-[92px] bg-red-600 text-white text-xs rounded-xl flex items-center justify-center">Löschen</button>
+        `;
+
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.setAttribute('data-folder-header','');
+        row.className = 'relative z-10 w-full flex items-center justify-between px-2 py-3 text-neutral-100 bg-[#020202] border-b border-white transition-transform ease-out duration-200';
+        row.innerHTML = `
+          <div class="flex items-center min-w-0">
+            <span class="inline-block w-8 h-8 rounded-full mr-4 shrink-0" style="${style}"></span>
+            <span class="flex-1 truncate">${f.name}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span data-count class="text-neutral-400 text-right text-lg">${count}</span>
+            <span class="text-neutral-400 select-none text-lg" data-icon>›</span>
+          </div>
+        `;
+
+        // Wrapper für die obere Zeile, damit Actions NICHT mit dem Panel wachsen
+        const rowWrap = document.createElement('div');
+        rowWrap.className = 'relative overflow-hidden md:overflow-visible';
+        rowWrap.style.position = 'relative';
+        rowWrap.style.zIndex = '10';
+        rowWrap.appendChild(actions);
+        rowWrap.appendChild(row);
+
+        const panel = document.createElement('div');
+        panel.setAttribute('data-panel','');
+        panel.setAttribute('style','max-height:0; opacity:0; overflow:hidden; transition:max-height 220ms ease, opacity 200ms ease; will-change:max-height; position: relative; z-index: 0;');
+        const filesWrap = document.createElement('div');
+        filesWrap.setAttribute('data-files','');
+        filesWrap.className = 'p-1';
+        filesWrap.style.position = 'relative';
+        filesWrap.style.zIndex = '1';
+        panel.appendChild(filesWrap);
+
+        // Helpers
+        const isMobile = window.innerWidth < 768;
+        let startX = 0, currentX = 0, swiped = false, actionWidth = actions.offsetWidth || 164;
+        const closeAll = ()=>{
+          folderList.querySelectorAll('[data-folder-header]')?.forEach(el=>{ el.style.transform = 'translateX(0)'; });
+        };
+        const openThis = ()=>{ actionWidth = actions.offsetWidth || actionWidth; row.style.transform = `translateX(-${actionWidth}px)`; };
+
+        async function toggleOpen(){
+          const icon = item.querySelector('[data-icon]');
+          const isOpen = panel.getAttribute('data-open') === 'true';
+          if (isOpen){
+            panel.setAttribute('data-open','false');
+            panel.style.maxHeight = '0px';
+            panel.style.opacity = '0';
+            if (icon) icon.textContent = '›';
+            return;
+          }
+          if (item.getAttribute('data-loaded') !== 'true'){
+            try{
+              const r = await fetch('/api/uploads?folder='+encodeURIComponent(f.name));
+              const j = await r.json();
+              const list = Array.isArray(j.items)? j.items: [];
+              if (!list.length){
+                filesWrap.innerHTML = '<div class="text-sm text-neutral-300 mt-2">Keine Dateien.</div>';
+              } else {
+                const tiles = list.map((it)=>{
+                  const key = it.key;
+                  return `<button data-key="${key}" class="relative w-full overflow-hidden rounded bg-[#0f0f0f]" style="aspect-ratio: 9/16;">
+                    <img data-img="${key}" alt="" class="w-full h-full block" style="object-fit: cover; filter: saturate(1.05);" />
+                  </button>`;
+                }).join('');
+                filesWrap.innerHTML = `<div class="grid grid-cols-3 gap-1" style="overscroll-behavior: contain;">${tiles}</div>`;
+                filesWrap.querySelectorAll('[data-img]')?.forEach(async (img)=>{
+                  const key = img.getAttribute('data-img');
+                  try{
+                    const vr = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
+                    if (vr.ok){ const vj = await vr.json(); img.setAttribute('src', vj.url); img.addEventListener('load', ()=>{ panel.style.maxHeight = panel.scrollHeight+'px'; }); }
+                  }catch{}
+                });
+                filesWrap.querySelectorAll('[data-key]')?.forEach(tile=>{
+                  tile.addEventListener('click', async ()=>{
+                    const key = tile.getAttribute('data-key');
+                    const vr = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
+                    if (vr.ok){ const vj = await vr.json(); window.open(vj.url, '_blank'); }
+                  });
+                });
+              }
+              item.setAttribute('data-loaded','true');
+            }catch(e){ filesWrap.innerHTML = '<div class="text-sm text-red-500 mt-2">Dateien konnten nicht geladen werden.</div>'; }
+          } else {
+            filesWrap.querySelectorAll('[data-img]')?.forEach(async (img)=>{
+              if (img.getAttribute('src')) return;
+              const key = img.getAttribute('data-img');
+              try{
+                const vr = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
+                if (vr.ok){ const vj = await vr.json(); img.setAttribute('src', vj.url); }
+              }catch{}
+            });
+          }
+          panel.setAttribute('data-open','true');
+          panel.style.opacity = '1';
+          adjustPanelScrolling(panel, filesWrap);
+          void panel.offsetHeight;
+          adjustPanelScrolling(panel, filesWrap);
+          try {
+            panel.addEventListener('transitionend', ()=> adjustPanelScrolling(panel, filesWrap), { once: true });
+            requestAnimationFrame(()=> requestAnimationFrame(()=> adjustPanelScrolling(panel, filesWrap)));
+          } catch {}
+          if (icon) icon.textContent = '×';
+        }
+
+        if (isMobile){
+          row.addEventListener('touchstart', (e)=>{
+            if ((e.touches?.length||0) > 0){ startX = e.touches[0].clientX; currentX = startX; swiped = false; }
+          }, { passive: true });
+          row.addEventListener('touchmove', (e)=>{
+            if ((e.touches?.length||0) > 0){
+              currentX = e.touches[0].clientX;
+              const dx = currentX - startX;
+              if (dx < -10){ e.preventDefault?.(); swiped = true; actionWidth = actions.offsetWidth || actionWidth; const tx = Math.max(-actionWidth, dx); row.style.transform = `translateX(${tx}px)`; }
+              else if (dx > 10 && row.style.transform){ e.preventDefault?.(); row.style.transform = 'translateX(0)'; }
+            }
+          }, { passive: false });
+          row.addEventListener('touchend', ()=>{
+            if (!swiped){ closeAll(); toggleOpen(); return; }
+            const dx = currentX - startX; actionWidth = actions.offsetWidth || actionWidth; if (dx < -40){ openThis(); } else { row.style.transform = 'translateX(0)'; }
+          });
+          row.addEventListener('click', ()=>{
+            if (row.style.transform && row.style.transform !== 'translateX(0)'){ row.style.transform = 'translateX(0)'; return; }
+            toggleOpen();
+          });
+        } else {
+          row.addEventListener('click', ()=> toggleOpen());
+        }
+
+        // Aktionen
+        const arrBtns = Array.from(actions.querySelectorAll('button'));
+        const btnMore = arrBtns[0];
+        const btnDelete = arrBtns[1];
+        btnMore?.addEventListener('click', ()=>{});
+        btnDelete?.addEventListener('click', async ()=>{
+          const ok = window.confirm('Mappe wirklich löschen? Alle enthaltenen Dateien werden entfernt.');
+          if (!ok) return;
+          try{
+            btnDelete.disabled = true;
+            const rr = await fetch('/api/folders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: f.name }) });
+            if (!rr.ok){ try{ const t = await rr.text(); console.error('Delete failed:', t); }catch{} }
+          }catch(e){ console.error(e); }
+          finally{ btnDelete.disabled = false; }
+          await loadFolders();
+        });
+
+        // Mount
+        item.appendChild(rowWrap);
+        item.appendChild(panel);
+        folderList.appendChild(item);
+      });
+    }
+
+    function renderFiles(items){
+      if (!fileList) return;
+      if (!Array.isArray(items) || !items.length){
+        if (folderList) folderList.classList.add('hidden');
+        fileList.classList.remove('hidden');
+        fileList.innerHTML = '<div class="text-sm text-neutral-300 mt-2">Keine Dateien.</div>';
+        return;
+      }
+      // Grid im Reels/Explore-Stil: 3 Spalten, hochformatige Thumbs, keine Namen
+      const tiles = items.map((it, idx)=>{
+        const key = it.key;
+        const tileId = `tile_${idx}_${Math.random().toString(36).slice(2,8)}`;
+        return `
+          <button id="${tileId}" data-key="${key}" class="relative w-full overflow-hidden rounded bg-[#0f0f0f]" style="aspect-ratio: 9/16;">
+            <img data-img="${key}" alt="" loading="lazy" class="w-full h-full block" style="object-fit: cover; filter: saturate(1.05);" />
+          </button>
+        `;
+      }).join('');
+      const grid = `<div class="grid grid-cols-3 gap-1">${tiles}</div>`;
+      if (folderList) folderList.classList.add('hidden');
+      fileList.classList.remove('hidden');
+      fileList.innerHTML = grid;
+
+      // Lade View-URLs und setze die Bild-Quelle
+      fileList.querySelectorAll('[data-img]')?.forEach(async (img)=>{
+        const key = img.getAttribute('data-img');
+        try{
+          const r = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
+          if (r.ok){ const j = await r.json(); img.setAttribute('src', j.url); }
+        }catch{ /* ignore */ }
+      });
+
+      // Klick öffnet das Bild in neuem Tab
+      fileList.querySelectorAll('[data-key]')?.forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const key = btn.getAttribute('data-key');
+          const r = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
+          if (r.ok){ const j = await r.json(); window.open(j.url, '_blank'); }
+        });
+      });
+    }
+
+    async function loadFolders(){
       try{
-        const pres = await fetch('/api/uploads/presign', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contentType: file.type }) });
-        if(!pres.ok){ throw new Error('Presign fehlgeschlagen'); }
-        const { url, key } = await pres.json();
+        const r = await fetch('/api/folders');
+        const j = await r.json();
+        renderFolders(j.folders||[]);
+        cacheFolderChoices(j.folders||[]);
+        if (!j.folders || !j.folders.length){
+          // keine Ordner → Modal zum Anlegen öffnen
+          openCreateFolder();
+        }
+      }catch(e){ folderList.innerHTML = '<div class="text-sm text-red-500">Ordner konnten nicht geladen werden.</div>'; }
+    }
+
+    async function loadFiles(folder){
+      try{
+        const r = await fetch('/api/uploads?folder='+encodeURIComponent(folder));
+        const j = await r.json();
+        renderFiles(j.items||[]);
+      }catch(e){ fileList.innerHTML = '<div class="text-sm text-red-500">Dateien konnten nicht geladen werden.</div>'; }
+    }
+
+    // Create-Folder-Modal
+    function openCreateFolder(){
+      if (!cfModal) return;
+      cfModal.classList.remove('hidden');
+      // Scroll lock, aber sauber beim Schließen wieder freigeben
+      document.body.style.overflow = 'hidden';
+      // reset
+      if (cfName) cfName['value'] = '';
+      if (cfShared) { cfShared.setAttribute('aria-checked','false'); cfShared.querySelector('span')?.setAttribute('style','transform: translateX(0px)'); cfShared.classList.remove('bg-neutral-800'); cfShared.classList.add('bg-neutral-300'); }
+      if (cfSubmit) cfSubmit.setAttribute('disabled','true');
+    }
+
+    // Switch behavior
+    cfShared?.addEventListener('click', ()=>{
+      const on = cfShared.getAttribute('aria-checked') === 'true';
+      const next = !on;
+      cfShared.setAttribute('aria-checked', String(next));
+      const knob = cfShared.querySelector('span');
+      if (next){ cfShared.classList.remove('bg-neutral-300'); cfShared.classList.add('bg-neutral-800'); knob?.setAttribute('style','transform: translateX(1.25rem)'); }
+      else { cfShared.classList.add('bg-neutral-300'); cfShared.classList.remove('bg-neutral-800'); knob?.setAttribute('style','transform: translateX(0px)'); }
+    });
+
+    // Enable submit when name present
+    cfName?.addEventListener('input', ()=>{
+      if (!cfSubmit) return; const v = String(cfName['value']||'').trim(); if (v.length) cfSubmit.removeAttribute('disabled'); else cfSubmit.setAttribute('disabled','true');
+    });
+
+    function closeCreateFolder(){ cfModal?.classList.add('hidden'); document.body.style.overflow = ''; const bg = document.getElementById('cf-bg'); if (bg) bg.className = 'absolute inset-0 bg-transparent'; }
+    cfClose?.addEventListener('click', closeCreateFolder);
+
+    cfSubmit?.addEventListener('click', async ()=>{
+      if (!cfName) return;
+      const name = String(cfName['value']||'').trim().toLowerCase();
+      const shared = cfShared?.getAttribute('aria-checked') === 'true';
+      if (!/^[-a-z0-9_]{1,64}$/.test(name)) return;
+      const r = await fetch('/api/folders', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, shared }) });
+      if (r.ok){
+        closeCreateFolder();
+        window.scrollTo(0,0);
+        await loadFolders();
+        currentFolder = name;
+        setTimeout(()=> fileInput?.click(), 50);
+      }
+    });
+
+    // Initial: Lade Ordnerliste (mobil) / Desktop optional
+    if (window.innerWidth < 768) { loadFolders(); }
+    
+    function log(msg, data = null) {
+      console.log('🔧 [FOLDER-JS]', msg, data || '');
+      if (data) console.log('🔧 [FOLDER-JS] Details:', data);
+    }
+    
+    // Panel-Scroll anpassen: ab 7 Bildern mit Scroll, sonst voll ausklappen
+    function adjustPanelScrolling(panel, filesWrap){
+      try{
+        const grid = filesWrap?.querySelector('.grid');
+        const num = grid ? grid.querySelectorAll('[data-key]').length : 0;
+        if (num >= 7){
+          panel.style.overflow = 'auto';
+          panel.style.maxHeight = '60vh';
+          panel.style.height = '60vh';
+          panel.style.webkitOverflowScrolling = 'touch';
+          panel.style.touchAction = 'pan-y';
+          if (grid) {
+            grid.style.marginBottom = 'calc(72px + env(safe-area-inset-bottom, 0px))';
+          }
+        } else {
+          panel.style.overflow = 'hidden';
+          panel.style.maxHeight = panel.scrollHeight + 'px';
+          panel.style.height = '';
+          if (grid) {
+            grid.style.marginBottom = '0px';
+          }
+        }
+      }catch{}
+    }
+
+    // -------- Select Folder Modal (Mobile) --------
+    function cacheFolderChoices(folders){
+      if (!sfList || !sfEmpty) return;
+      if (!Array.isArray(folders) || !folders.length){
+        sfList.innerHTML = '';
+        sfEmpty.classList.remove('hidden');
+        return;
+      }
+      sfEmpty.classList.add('hidden');
+      sfList.innerHTML = folders.map(f=>{
+        const style = gradientStyleForName(f.name);
+        const safe = f.name.replace(/[^a-z0-9_-]/gi,'_');
+        return `<button data-sf-item="${f.name}" class="w-full flex items-center justify-between px-2 py-3 rounded-md hover:bg-neutral-800/80">
+          <div class="flex items-center min-w-0">
+            <span class="inline-block w-7 h-7 rounded-full mr-2 shrink-0" style="${style}"></span>
+            <span class="flex-1 truncate">${f.name}</span>
+          </div>
+          <span data-sf-check class="text-sm text-neutral-400">${'Auswählen'}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function openSelectFolder(){ sfModal?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; sfSelected = null; sfSave?.setAttribute('disabled','true'); }
+    function closeSelectFolder(){ sfModal?.classList.add('hidden'); document.body.style.overflow = ''; }
+
+    async function openSelectFolderModal(){
+      return new Promise((resolve)=>{
+        openSelectFolder();
+        const onItem = (e)=>{
+          const btn = e.target.closest?.('[data-sf-item]');
+          if (!btn) return;
+          sfSelected = btn.getAttribute('data-sf-item');
+          sfList.querySelectorAll('[data-sf-item]')?.forEach(b=> b.classList.remove('bg-neutral-800'));
+          btn.classList.add('bg-neutral-800');
+          sfSave?.removeAttribute('disabled');
+        };
+        const onSave = ()=>{ cleanup(); closeSelectFolder(); resolve(true); };
+        const onCancel = ()=>{ cleanup(); closeSelectFolder(); resolve(false); };
+        const onClose = ()=>{ cleanup(); closeSelectFolder(); resolve(false); };
+
+        sfList?.addEventListener('click', onItem);
+        sfSave?.addEventListener('click', onSave);
+        sfCancel?.addEventListener('click', onCancel);
+        sfClose?.addEventListener('click', onClose);
+
+        function cleanup(){
+          sfList?.removeEventListener('click', onItem);
+          sfSave?.removeEventListener('click', onSave);
+          sfCancel?.removeEventListener('click', onCancel);
+          sfClose?.removeEventListener('click', onClose);
+        }
+      });
+    }
+    
+    // Test connection function (compact: kein Output in der Seite)
+    async function testConnection() {
+      try {
+        const serverTest = await fetch('/api/uploads', { method: 'GET' });
+        log('Server test:', { status: serverTest.status, ok: serverTest.ok });
+        if (!serverTest.ok) return { ok: false, code: 400 };
+        const presignTest = await fetch('/api/uploads/presign', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contentType: 'image/jpeg', ...(currentFolder? { folder: currentFolder }: {}) })
+        });
+        log('Presign test:', { status: presignTest.status, ok: presignTest.ok });
+        if (!presignTest.ok) return { ok: false, code: 400 };
+        const presignData = await presignTest.json().catch(()=>null);
+        if (!presignData || !presignData.url || !presignData.fields || !presignData.key) return { ok: false, code: 400 };
+        return { ok: true, code: 200 };
+      } catch (e) {
+        log('Connection test failed (exception):', e);
+        return { ok: false, code: 400 };
+      }
+    }
+    
+    // Entfernt: btnTest auf Seite (nur im Drawer verfügbar)
+    // Drawer Open/Close (Settings-Zahnrad in Navbar)
+    // Delegation: Wir lauschen global auf Klicks auf das Zahnrad innerhalb der Navbar
+    document.addEventListener('click', (e)=>{
+      const t = e.target;
+      if (!t) return;
+      const el = (t.closest) ? t.closest('[aria-label="Einstellungen"]') : null;
+      if (el && window.innerWidth < 768){
+        if (drawer) drawer.classList.remove('hidden');
+      }
+    });
+    drawerOverlay?.addEventListener('click', ()=> drawer?.classList.add('hidden'));
+    drawerClose?.addEventListener('click', ()=> drawer?.classList.add('hidden'));
+    drawerTest?.addEventListener('click', async ()=>{ 
+      drawerStatus.textContent = '...';
+      const res = await testConnection();
+      drawerStatus.textContent = `Status ${res.ok ? '200 OK' : '400 Error'}`;
+    });
+    
+    // Mobile + Desktop Upload öffnen
+    const btnUploadMobile = document.getElementById('btn-upload-mobile');
+    btnUpload?.addEventListener('click', () => {
+      log('Upload button clicked');
+      fileInput?.click();
+    });
+    btnUploadMobile?.addEventListener('click', () => {
+      log('Upload button (mobile) clicked');
+      fileInput?.click();
+    });
+    
+    fileInput?.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) {
+        log('No file selected');
+        return;
+      }
+      // Mobile: wähle Mappe vor Upload
+      if (window.innerWidth < 768) {
+        const ok = await openSelectFolderModal();
+        if (!ok) { fileInput.value = ''; return; }
+      }
+
+      log('File selected:', {
+        name: file.name,
+        type: file.type,
+        size: file.size + ' bytes'
+      });
+      
+      statusEl.textContent = 'Bereite Upload vor…';
+      
+      try {
+        // Step 1: Get presigned URL
+        log('Step 1: Requesting presigned URL...');
+        log('Request payload:', { contentType: file.type });
+        
+        let presignResponse;
+        try {
+          const targetFolder = (window.innerWidth < 768 && sfSelected) ? sfSelected : currentFolder;
+          const body = { contentType: file.type, ...(targetFolder ? { folder: targetFolder } : {}) };
+          presignResponse = await fetch('/api/uploads/presign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+        } catch (networkError) {
+          log('Network error during presign request:', networkError);
+          throw new Error(`Netzwerk-Fehler beim Presign: ${networkError.message}`);
+        }
+        
+        log('Presign response status:', presignResponse.status);
+        log('Presign response statusText:', presignResponse.statusText);
+        log('Presign response headers:', Object.fromEntries(presignResponse.headers.entries()));
+        
+        let presignResponseText = '';
+        let presignData;
+        try {
+          presignResponseText = await presignResponse.text();
+          log('Presign response body (raw):', presignResponseText);
+          presignData = JSON.parse(presignResponseText);
+        } catch (parseError) {
+          log('JSON parse error:', parseError);
+          log('Raw response text:', presignResponseText);
+          throw new Error(`Presign-Antwort konnte nicht geparst werden: ${parseError.message}`);
+        }
+        
+        if (!presignResponse.ok) {
+          log('Presign failed:', { 
+            status: presignResponse.status, 
+            statusText: presignResponse.statusText,
+            body: presignData || presignResponseText 
+          });
+          const errorMsg = presignData?.error || presignResponseText || 'Unbekannter Presign-Fehler';
+          throw new Error(`Presign fehlgeschlagen: ${presignResponse.status} - ${errorMsg}`);
+        }
+        
+        log('Presign data received:', presignData);
+        
+        const { url, fields, key, region, bucket } = presignData;
+        log('Presign meta:', { region, bucket, url });
+        
+        if (!url || !fields || !key) {
+          log('Invalid presign response structure:', presignData);
+          throw new Error('Ungültige Presign-Antwort');
+        }
+        
+        // Step 2: Upload file using form data
         statusEl.textContent = 'Lade hoch…';
-        const put = await fetch(url, { method:'PUT', headers: { 'Content-Type': file.type }, body: file });
-        if(!put.ok){ throw new Error('Upload fehlgeschlagen'); }
-        // optional: Presigned GET zum Testen anzeigen
-        const view = await fetch('/api/uploads/view-url?key='+encodeURIComponent(key));
-        let link = '';
-        if(view.ok){ const j = await view.json(); link = j.url; }
-        statusEl.innerHTML = 'Fertig! Gespeichert als ' + key + (link? ` – <a class="underline" href="${link}" target="_blank">Ansehen</a>` : '');
-      }catch(e){
-        statusEl.textContent = 'Fehler: ' + (e?.message || e);
-      }finally{
+        log('Step 2: Uploading file to S3...');
+        log('Upload URL:', url);
+        log('Upload fields:', fields);
+        
+        const formData = new FormData();
+        
+        // Add all presigned fields first
+        Object.entries(fields).forEach(([fieldKey, fieldValue]) => {
+          formData.append(fieldKey, fieldValue);
+          log(`Added field: ${fieldKey} = ${fieldValue}`);
+        });
+        // Some S3 policies require explicit Content-Type field in the form
+        if (!('Content-Type' in fields)) {
+          formData.append('Content-Type', file.type);
+          log('Added fallback Content-Type to form data:', file.type);
+        }
+        
+        // Add file last (required by S3)
+        formData.append('file', file);
+        log('Added file to form data. Total FormData entries:', [...formData.keys()]);
+        
+        // Debug: Log FormData contents
+        for (let [k, v] of formData.entries()) {
+          if (k === 'file') {
+            log(`FormData[${k}]: File(${v.name}, ${v.size} bytes, ${v.type})`);
+          } else {
+            log(`FormData[${k}]: ${v}`);
+          }
+        }
+        
+        let uploadResponse;
+        try {
+          uploadResponse = await fetch(url, {
+            method: 'POST',
+            mode: 'cors',
+            body: formData
+          });
+        } catch (networkError) {
+          log('Network error during upload:', networkError);
+          throw new Error(`Netzwerk-Fehler: ${networkError.message}`);
+        }
+        
+        log('Upload response status:', uploadResponse.status);
+        log('Upload response statusText:', uploadResponse.statusText);
+        log('Upload response headers:', Object.fromEntries(uploadResponse.headers.entries()));
+        
+        // Get response text for debugging
+        let uploadResponseText = '';
+        try {
+          uploadResponseText = await uploadResponse.text();
+          log('Upload response body:', uploadResponseText);
+        } catch (textError) {
+          log('Could not read response text:', textError);
+        }
+        
+        if (!uploadResponse.ok) {
+          log('Upload failed details:', {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+            body: uploadResponseText,
+            headers: Object.fromEntries(uploadResponse.headers.entries())
+          });
+          
+          // More detailed error message based on status
+          let errorDetail = '';
+          if (uploadResponse.status === 403) {
+            errorDetail = 'Zugriff verweigert - Prüfe AWS Credentials und CORS';
+          } else if (uploadResponse.status === 400) {
+            errorDetail = 'Ungültige Anfrage - Prüfe FormData und Presigned Fields';
+          } else if (uploadResponse.status >= 500) {
+            errorDetail = 'Server-Fehler - Prüfe AWS S3 Konfiguration';
+          } else {
+            errorDetail = uploadResponseText || 'Unbekannter Fehler';
+          }
+          
+          throw new Error(`Upload fehlgeschlagen: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorDetail}`);
+        }
+        
+        log('Upload successful!');
+        
+        // Step 3: Get view URL
+        statusEl.textContent = 'Erstelle Ansichts-Link…';
+        log('Step 3: Getting view URL...');
+        
+        const viewResponse = await fetch('/api/uploads/view-url?key=' + encodeURIComponent(key));
+        let viewUrl = '';
+        
+        if (viewResponse.ok) {
+          const viewData = await viewResponse.json();
+          viewUrl = viewData.url;
+          log('View URL created:', viewUrl);
+        } else {
+          log('View URL failed:', viewResponse.status);
+        }
+        
+        // Success message
+        const successMsg = `Fertig. Gespeichert als: ${key}`;
+        const linkMsg = viewUrl ? ` – <a class="underline text-blue-400 hover:text-blue-300" href="${viewUrl}" target="_blank">Ansehen</a>` : '';
+        
+        statusEl.innerHTML = successMsg + linkMsg;
+        log('Upload process completed successfully');
+
+        // UI: wenn Mobil und Mappe gewählt → Panel live aktualisieren
+        try {
+          const folderUsed = (window.innerWidth < 768 && sfSelected) ? sfSelected : currentFolder;
+          if (folderUsed) {
+            const item = document.querySelector(`.folder-item[data-folder="${folderUsed}"]`);
+            const panel = item?.querySelector('[data-panel]');
+            const filesWrap = item?.querySelector('[data-files]');
+            const countEl = item?.querySelector('[data-count]');
+            const iconEl = item?.querySelector('[data-icon]');
+            if (item && panel && filesWrap) {
+              // Falls Liste noch nicht geladen war, lade sie und setze Bild-URLs
+              if (item.getAttribute('data-loaded') !== 'true') {
+                const r = await fetch('/api/uploads?folder=' + encodeURIComponent(folderUsed));
+                const j = await r.json();
+                const list = Array.isArray(j.items) ? j.items : [];
+                const tiles = list.map((it)=>{
+                  return `<button data-key="${it.key}" class="relative w-full overflow-hidden rounded bg-[#0f0f0f]" style="aspect-ratio: 9/16;">
+                    <img data-img="${it.key}" alt="" class="w-full h-full block" style="object-fit: cover; filter: saturate(1.05);" />
+                  </button>`;
+                }).join('');
+                filesWrap.innerHTML = `<div class="grid grid-cols-3 gap-1">${tiles}</div>`;
+                // setze src für alle Bilder
+                filesWrap.querySelectorAll('[data-img]')?.forEach(async (img)=>{
+                  const k = img.getAttribute('data-img');
+                  try{
+                    const vr = await fetch('/api/uploads/view-url?key=' + encodeURIComponent(k));
+                    if (vr.ok){ const vj = await vr.json(); img.src = vj.url; img.addEventListener('load', ()=>{ panel.style.maxHeight = panel.scrollHeight+'px'; }); }
+                  } catch {}
+                });
+                // Klick öffnet Bild
+                filesWrap.querySelectorAll('[data-key]')?.forEach(tile=>{
+                  tile.addEventListener('click', async ()=>{
+                    const k = tile.getAttribute('data-key');
+                    const vr = await fetch('/api/uploads/view-url?key=' + encodeURIComponent(k));
+                    if (vr.ok){ const vj = await vr.json(); window.open(vj.url, '_blank'); }
+                  });
+                });
+                item.setAttribute('data-loaded','true');
+              }
+              // Hänge neue Kachel an
+              const grid = filesWrap.querySelector('.grid');
+              if (grid) {
+                const tile = document.createElement('button');
+                tile.setAttribute('data-key', key);
+                tile.className = 'relative w-full overflow-hidden rounded bg-[#0f0f0f]';
+                tile.setAttribute('style', 'aspect-ratio: 9/16;');
+                const img = document.createElement('img');
+                img.setAttribute('alt','');
+                img.className = 'w-full h-full block';
+                img.setAttribute('style','object-fit: cover; filter: saturate(1.05);');
+                try {
+                  const vr = await fetch('/api/uploads/view-url?key=' + encodeURIComponent(key));
+                  if (vr.ok){ const vj = await vr.json(); img.src = vj.url; }
+                } catch {}
+                tile.appendChild(img);
+                grid.prepend(tile);
+                adjustPanelScrolling(panel, filesWrap);
+              }
+              // Panel sicher öffnen und Höhe/Scroll aktualisieren
+              panel.setAttribute('data-open','true');
+              panel.style.opacity = '1';
+              adjustPanelScrolling(panel, filesWrap);
+              void panel.offsetHeight;
+              adjustPanelScrolling(panel, filesWrap);
+              try {
+                panel.addEventListener('transitionend', ()=> adjustPanelScrolling(panel, filesWrap), { once: true });
+                requestAnimationFrame(()=> requestAnimationFrame(()=> adjustPanelScrolling(panel, filesWrap)));
+              } catch {}
+              if (iconEl) iconEl.textContent = '×';
+              // Count erhöhen
+              if (countEl){
+                const n = parseInt(countEl.textContent || '0', 10) || 0;
+                countEl.textContent = String(n + 1);
+              }
+            }
+          }
+        } catch {}
+        
+      } catch (error) {
+        const errorMsg = error?.message || error;
+        log('Upload error:', error);
+        statusEl.innerHTML = `Fehler: ${errorMsg}`;
+      } finally {
         fileInput.value = '';
+        log('File input cleared');
       }
     });
   </script>
 </body>
 </html>
-
-

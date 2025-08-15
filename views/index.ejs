@@ -2,12 +2,12 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
   <title>School AI</title>
   <link href="/styles.css" rel="stylesheet">
   <style>
     /* Chat-Scrollbar verstecken, Scroll bleibt möglich */
-    #chat-messages { scrollbar-width: none; -ms-overflow-style: none; }
+    #chat-messages { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
     #chat-messages::-webkit-scrollbar { display: none; }
     /* Whiteboard: dezentes Grid */
     .wb-grid {
@@ -18,11 +18,42 @@
       background-size: 24px 24px;
       background-position: 0 0, 0 0;
     }
+    /* Docs-Modal: Scrollbar ausblenden, aber Scroll behalten */
+    #docs-list { scrollbar-width: none; -ms-overflow-style: none; }
+    #docs-list::-webkit-scrollbar { display: none; }
+    /* Dynamische Viewport-Höhe für iOS Safari */
+    :root { --vh: 1vh; --app-top: 56px; }
+    @supports (height: 100dvh) {
+      .app-viewport { height: calc(100dvh - var(--app-top)); }
+    }
+    @supports not (height: 100dvh) {
+      .app-viewport { height: calc(var(--vh, 1vh) * 100 - var(--app-top)); }
+    }
+    /* Extra Unterkante für die Zeitstempel sichtbar zu halten */
+    #chat-messages::after { content: ""; display: block; height: 96px; }
   </style>
 </head>
 <body class="bg-[#020202] text-neutral-200 h-screen overflow-hidden">
-  <%- include('navbar/navbar') %>
-  <div class="flex h-[calc(100vh-56px)]">
+  <%- include('navbar/navbar', { currentRoute: '/' }) %>
+  
+  <!-- Mobile Suchleiste (nur auf kleinen Bildschirmen sichtbar) -->
+  <div id="mobile-search" class="w-full bg-[#020202] px-4 py-2 md:hidden">
+    <div class="w-[90%] mx-auto">
+      <div class="relative">
+        <input
+          type="text"
+          placeholder="Suchen..."
+          class="w-full rounded-md bg-[#0f0f0f] text-neutral-100 placeholder-neutral-500 pl-8 pr-3 py-2 outline-none ring-1 ring-[#2f3b47] focus:ring-[#75D0E6] transition-colors text-base"
+          style="font-size:16px;"
+        />
+        <svg class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+        </svg>
+      </div>
+    </div>
+  </div>
+  
+  <div class="flex app-viewport min-h-0">
     <!-- Linke Fläche (70%) → Whiteboard -->
     <section class="w-[70%] p-4 hidden lg:flex">
       <div id="whiteboard-wrapper" class="wb-grid rounded-2xl p-8 w-full flex flex-col gap-3">
@@ -38,11 +69,11 @@
           <button id="tool-text" class="px-3 py-1 text-xs rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-neutral-200">Text</button>
           <div class="h-5 w-px bg-neutral-700 mx-1"></div>
           <!-- Fiktiver Ordner/Sheets-Indikator -->
-          <button type="button" class="flex items-center gap-2 px-3 py-1 rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-xs text-neutral-200 hover:bg-neutral-700">
+          <button id="btn-docs" type="button" class="flex items-center gap-2 px-3 py-1 rounded-md bg-neutral-800 ring-1 ring-neutral-600 text-xs text-neutral-200 hover:bg-neutral-700">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-4 h-4">
               <path d="M3 7.5h6l1.8 2H21v7.5A1.5 1.5 0 0119.5 18h-15A1.5 1.5 0 013 16.5V7.5z"/>
             </svg>
-            <span>Ablage: /School/Sheets</span>
+            <span>Ablage</span>
           </button>
           <!-- Seitenanzeige -->
           <span id="page-indicator" class="text-xs text-white">Seite 1 von 24</span>
@@ -62,7 +93,7 @@
     </section>
 
     <!-- Rechte Seite: Chat (30%), gleiche BG, clean -->
-    <aside class="w-full lg:w-[30%] bg-[#020202] flex flex-col h-[calc(100vh-56px)] p-4">
+    <aside class="w-full lg:w-[30%] bg-[#020202] flex flex-col h-full min-h-0 p-4 overflow-hidden">
       <!-- Mini-Header über dem Input (ca. 10px Abstand zur Navbar) -->
       <div class="flex items-center justify-between mb-2 mt-[10px]">
         <div class="bg-[#121318] border border-[#2a2a2a] rounded-md px-3 py-1 text-sm font-medium text-neutral-100">New Chat</div>
@@ -97,10 +128,13 @@
         </div>
       </div>
 
+      <!-- Bild-Anhang Anzeige -->
+      <div id="image-attachment" class="hidden mb-2 flex items-center justify-between rounded-md border border-[#2a2a2a] bg-[#121318] px-3 py-2 text-xs text-neutral-200"></div>
+
       <!-- Eingabe -->
-      <form id="chat-form" class="mb-4">
+      <form id="chat-form" class="mt-auto pt-2 shrink-0">
         <div class="relative w-full">
-          <textarea id="chat-input" rows="1" placeholder="Nachricht an School AI..." class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-[#2f3b47] pl-3 pr-40 py-4 text-sm resize-none leading-6 overflow-hidden"></textarea>
+          <textarea id="chat-input" rows="1" placeholder="Nachricht an School AI..." class="w-full rounded-md bg-[#121318] text-neutral-100 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-[#2f3b47] pl-3 pr-40 py-4 text-base md:text-sm resize-none leading-6 overflow-hidden" style="font-size:16px;"></textarea>
           <!-- Icon-Leiste rechts im Feld -->
           <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
             <!-- Sketch-Toggle -->
@@ -111,12 +145,10 @@
                 <path d="M14.06 6.19l1.77-1.77a1.5 1.5 0 012.12 0l1.63 1.63a1.5 1.5 0 010 2.12l-1.77 1.77"/>
               </svg>
             </button>
-            <!-- Bild-Icon -->
-            <button type="button" aria-label="Bild auswählen" class="p-2 rounded-md text-neutral-300 hover:text-white hover:bg-neutral-700/40 focus:outline-none">
+            <!-- Ordner-Icon -->
+            <button id="btn-docs-input" type="button" aria-label="Ablage öffnen" title="Ablage" class="p-2 rounded-md text-neutral-300 hover:text-white hover:bg-neutral-700/40 focus:outline-none">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-5 h-5">
-                <path d="M4.5 5.5h15a1.5 1.5 0 011.5 1.5v10a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17V7a1.5 1.5 0 011.5-1.5z"/>
-                <path d="M7 14l2.2-2.2a1.5 1.5 0 012.1 0L13.5 14l1.5-1.5a1.5 1.5 0 012.1 0L19.5 15"/>
-                <circle cx="8.5" cy="9" r="1.2"/>
+                <path d="M3 7.5h6l1.8 2H21v7.5A1.5 1.5 0 0119.5 18h-15A1.5 1.5 0 013 16.5V7.5z"/>
               </svg>
             </button>
             <!-- Senden -->
@@ -130,13 +162,336 @@
       </form>
 
       <!-- Nachrichtenliste darunter -->
-      <div id="chat-messages" class="flex-1 overflow-y-auto overflow-x-hidden space-y-4 pr-1">
+      <div id="chat-messages" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-4 pr-1 pb-24 md:pb-2 [padding-bottom:env(safe-area-inset-bottom)]">
         <!-- Noch keine Nachrichten: leerer Startzustand -->
       </div>
     </aside>
   </div>
 
+  <!-- Modal: Deine Dokumente -->
+  <div id="docs-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+    <!-- Overlay -->
+    <div id="docs-overlay" class="absolute inset-0 bg-transparent"></div>
+    <!-- Dialog -->
+    <div role="dialog" aria-modal="true" aria-labelledby="docs-title" class="relative bg-[#050505] rounded-xl w-[92vw] max-w-3xl shadow-xl border border-[#2a2a2a]">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-[#2a2a2a]">
+        <h2 id="docs-title" class="text-white text-base font-medium">Deine Dokumente</h2>
+        <button id="docs-close" aria-label="Schließen" class="p-1 text-neutral-300 hover:text-white focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <!-- Liste -->
+      <div class="max-h-[60vh] overflow-y-auto overflow-x-hidden px-5 py-3" id="docs-list">
+        <div class="text-neutral-400 text-sm">Lade…</div>
+      </div>
+      <!-- Footer -->
+      <div class="flex items-center justify-between px-5 py-4 border-t border-[#2a2a2a]">
+        <a href="https://www.tiktok.com/" target="_blank" class="flex items-center gap-2 px-3 py-2 rounded-md bg-neutral-900 text-neutral-200 hover:bg-neutral-800">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
+            <path d="M14.75 3v.36c.15 2.03 1.56 3.74 3.46 4.56 1 .44 2.09.66 3.29.66v3.22c-1.86 0-3.56-.45-5.02-1.25-.25-.14-.48-.28-.7-.43v5.18c0 3.25-2.64 5.88-5.88 5.88S3.12 18.55 3.12 15.3s2.64-5.88 5.88-5.88c.41 0 .81.04 1.2.12v3.37a3.06 3.06 0 00-1.2-.24 2.64 2.64 0 100 5.28 2.64 2.64 0 002.64-2.64V3h2.11z"/>
+          </svg>
+          <span class="text-sm">Follow updates</span>
+        </a>
+        <button id="docs-submit" class="px-4 py-2 rounded-md text-sm bg-neutral-700 text-neutral-200 cursor-not-allowed">Submit</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // Korrigiere die 1vh-Einheit auf iOS (einbeziehen dynamischer Browserleisten)
+    (function(){
+      function setVh(){
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      }
+      setVh();
+      window.addEventListener('resize', setVh);
+      window.addEventListener('orientationchange', setVh);
+    })();
+    // Modal öffnen/schließen
+    (function(){
+      const btn = document.getElementById('btn-docs');
+      const modal = document.getElementById('docs-modal');
+      const overlay = document.getElementById('docs-overlay');
+      const closeBtn = document.getElementById('docs-close');
+      const listEl = document.getElementById('docs-list');
+      const submitBtn = document.getElementById('docs-submit');
+      let selectedKey = null;
+      let currentFolderInModal = null;
+      const open = ()=> modal?.classList.remove('hidden');
+      const close = ()=> { modal?.classList.add('hidden'); currentFolderInModal=null; };
+
+      function gradientStyleForName(name){
+        try {
+          const base = Array.from(String(name||''))
+            .reduce((acc, ch)=> (acc + ch.charCodeAt(0) * 17) % 360, 0);
+          const h1 = base, h2 = (base+120)%360, h3 = (base+240)%360;
+          return `background: linear-gradient(135deg, hsl(${h1} 90% 55%), hsl(${h2} 90% 55%), hsl(${h3} 90% 55%))`;
+        } catch { return 'background: linear-gradient(135deg, #ff7eb3, #7afcff, #feff9c)'; }
+      }
+
+      function formatLabel(key){
+        const base = (key.split('/').pop()||key);
+        const idx = base.lastIndexOf('.');
+        const name = idx>0 ? base.slice(0, idx) : base;
+        const ext = idx>0 ? base.slice(idx+1).toUpperCase() : '';
+        const first = name.slice(0,4);
+        const last = name.slice(-4);
+        const label = name.length <= 8 ? name : `${first}....${last}`;
+        return { label, ext };
+      }
+
+      function isImageKey(key){
+        return /\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif|avif)$/i.test(String(key||''));
+      }
+
+      async function openFolderInModal(folder){
+        currentFolderInModal = folder;
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="text-neutral-400 text-sm">Lade…</div>';
+        try{
+          const r = await fetch('/api/uploads?folder='+encodeURIComponent(folder));
+          const j = await r.json();
+          const items = Array.isArray(j?.items) ? j.items.filter(it=> isImageKey(it.key)) : [];
+          const header = document.createElement('div');
+          header.className = 'flex items-center justify-between mb-3';
+          header.innerHTML = `
+            <button id="docs-back" class="px-3 py-1 rounded-md bg-neutral-800 text-neutral-200 hover:bg-neutral-700">Zurück</button>
+            <div class="text-sm text-neutral-400">${items.length} Bilder</div>
+          `;
+          const grid = document.createElement('div');
+          grid.className = 'grid grid-cols-3 gap-4';
+
+          items.forEach(it=>{
+            const { label, ext } = formatLabel(it.key);
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'group relative flex flex-col items-center gap-1 select-none focus:outline-none';
+            tile.innerHTML = `
+              <div class="w-24 h-24 rounded-lg bg-neutral-900 ring-1 ring-neutral-700 overflow-hidden">
+                <img alt="" class="w-full h-full object-cover" />
+              </div>
+              <div class="text-[11px] text-neutral-200 leading-4 max-w-[6rem] truncate text-center">${label}</div>
+              <div class="text-[10px] text-neutral-500 -mt-1 text-center">${ext}</div>
+            `;
+            grid.appendChild(tile);
+
+            tile.addEventListener('click', ()=>{
+              selectedKey = it.key;
+              grid.querySelectorAll('.selected')?.forEach(el=>{
+                el.classList.remove('selected');
+                const box = el.querySelector('div.w-24');
+                if (box) { box.classList.remove('ring-4','ring-white'); box.classList.add('ring-1','ring-neutral-700'); }
+              });
+              tile.classList.add('selected');
+              const box = tile.querySelector('div.w-24');
+              if (box) { box.classList.remove('ring-1','ring-neutral-700'); box.classList.add('ring-4','ring-white'); }
+              submitBtn.className = 'px-4 py-2 rounded-md text-sm bg-white text-black';
+              submitBtn.classList.remove('cursor-not-allowed');
+            });
+
+            (async ()=>{ try{ const vr = await fetch('/api/uploads/view-url?key='+encodeURIComponent(it.key)); if (vr.ok){ const vj = await vr.json(); const img = tile.querySelector('img'); if (img) img.src = vj.url; } }catch{} })();
+          });
+
+          listEl.innerHTML = '';
+          listEl.appendChild(header);
+          listEl.appendChild(grid);
+          document.getElementById('docs-back')?.addEventListener('click', ()=> loadDocs());
+        }catch(e){
+          listEl.innerHTML = `<div class=\"text-red-400 text-sm\">Fehler beim Laden: ${e?.message||e}</div>`;
+        }
+      }
+
+      async function loadDocs(){
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="text-neutral-400 text-sm">Lade…</div>';
+        try{
+          const r = await fetch('/api/folders');
+          const j = await r.json();
+          const folders = Array.isArray(j?.folders) ? j.folders : [];
+          if (!folders.length){ listEl.innerHTML = '<div class="text-neutral-500 text-sm">Keine Ordner vorhanden.</div>'; return; }
+          const wrap = document.createElement('div');
+          wrap.className = 'space-y-2';
+          let openSwipe = null;
+          folders.forEach(f=>{
+            const item = document.createElement('div');
+            item.className = 'relative overflow-hidden';
+
+            const actions = document.createElement('div');
+            actions.className = 'absolute inset-y-0 right-0 flex items-stretch md:hidden';
+            actions.innerHTML = `
+              <button type="button" class="px-3 py-2 min-w-[72px] bg-black text-white text-xs rounded-l-xl flex flex-col items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+                <span class="mt-0.5">Mehr</span>
+              </button>
+              <button type="button" class="px-3 py-2 min-w-[92px] bg-red-600 text-white text-xs rounded-xl flex items-center justify-center">Löschen</button>
+            `;
+
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'relative z-10 w-full flex items-center justify-between px-3 py-3 text-neutral-100 bg-[#050505] hover:bg-[#0f0f0f] border-b border-white transition-transform ease-out duration-200';
+            row.setAttribute('data-folder', f.name);
+            row.innerHTML = `
+              <div class="flex items-center">
+                <span class="inline-block w-10 h-10 rounded-full mr-3" style="${gradientStyleForName(f.name)}"></span>
+                <span class="text-lg">${f.name}</span>
+              </div>
+              <div class="flex items-center gap-2"><span class="text-neutral-400 text-lg">${f.count||0}</span><span class="text-neutral-400 text-lg">›</span></div>
+            `;
+
+            const isMobile = window.innerWidth < 768;
+            if (isMobile){
+              // Swipe-Logik nur Mobile
+              let startX = 0; let currentX = 0; let swiped = false; let actionWidth = 170; // ~72 + 92 + padding
+              const closeAll = ()=>{
+                wrap.querySelectorAll('button[data-folder]')?.forEach((el)=>{ (el).style.transform = 'translateX(0)'; });
+                openSwipe = null;
+              };
+              const openThis = ()=>{
+                actionWidth = actions.offsetWidth || actionWidth;
+                row.style.transform = `translateX(-${actionWidth}px)`;
+                openSwipe = row;
+              };
+              row.addEventListener('touchstart', (e)=>{
+                if ((e.touches?.length||0) > 0){
+                  startX = e.touches[0].clientX; currentX = startX; swiped = false;
+                }
+              }, { passive: true });
+              row.addEventListener('touchmove', (e)=>{
+                if ((e.touches?.length||0) > 0){
+                  currentX = e.touches[0].clientX;
+                  const dx = currentX - startX;
+                  if (dx < -10){
+                    e.preventDefault?.();
+                    swiped = true;
+                    actionWidth = actions.offsetWidth || actionWidth;
+                    const tx = Math.max(-actionWidth, dx);
+                    row.style.transform = `translateX(${tx}px)`;
+                  } else if (dx > 10 && (openSwipe === row || row.style.transform)){
+                    e.preventDefault?.();
+                    row.style.transform = 'translateX(0)';
+                  }
+                }
+              }, { passive: false });
+              row.addEventListener('touchend', ()=>{
+                if (!swiped){
+                  closeAll();
+                  openFolderInModal(f.name);
+                  return;
+                }
+                const dx = currentX - startX;
+                actionWidth = actions.offsetWidth || actionWidth;
+                if (dx < -40){ openThis(); } else { row.style.transform = 'translateX(0)'; }
+              });
+              row.addEventListener('click', ()=>{
+                if (openSwipe && openSwipe === row){ closeAll(); return; }
+                if (row.style.transform && row.style.transform !== 'translateX(0)'){ closeAll(); return; }
+                openFolderInModal(f.name);
+              });
+            } else {
+              // Desktop: kein Swipe, keine Actions sichtbar
+              row.addEventListener('click', ()=> openFolderInModal(f.name));
+            }
+
+            // Aktionen (nur Mobile klickbar)
+            const arrBtns = Array.from(actions.querySelectorAll('button'));
+            const btnMore = arrBtns[0];
+            const btnDelete = arrBtns[1];
+            btnMore?.addEventListener('click', ()=>{ /* optional: Menü folgen */ });
+            btnDelete?.addEventListener('click', async ()=>{
+              // Bestätigung (clean, ohne Emoji)
+              const ok = window.confirm('Mappe wirklich löschen? Alle enthaltenen Dateien werden entfernt.');
+              if (!ok) return;
+              try{
+                btnDelete.disabled = true;
+                const rr = await fetch('/api/folders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: f.name }) });
+                if (!rr.ok){ try{ const t = await rr.text(); console.error('Delete failed:', t); }catch{} }
+              }catch(e){ console.error(e); }
+              finally{ btnDelete.disabled = false; }
+              // Liste neu laden
+              await loadDocs();
+            });
+
+            if (isMobile) item.appendChild(actions);
+            item.appendChild(row);
+            wrap.appendChild(item);
+          });
+          listEl.innerHTML = '';
+          listEl.appendChild(wrap);
+
+          // Desktop-Aktionsleiste unter der weißen Linie: Links Delete (weiß), rechts Mehr (…)
+          const actionsBar = document.createElement('div');
+          actionsBar.id = 'docs-actions-bar';
+          actionsBar.className = 'hidden md:flex items-center justify-between px-5 py-3';
+          actionsBar.innerHTML = `
+            <div id="docs-delete-wrap" class="flex items-center gap-3 justify-start w-full transition-all">
+              <span id="docs-confirm-text" class="hidden text-sm text-neutral-300">Sicher, dass Sie den Ordner löschen wollen?</span>
+              <button id="docs-delete-btn" class="px-3 py-2 rounded-md bg-white text-black text-sm transition-all">Löschen</button>
+            </div>
+            <button id="docs-more-btn" class="p-2 text-neutral-300 hover:text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>
+            </button>`;
+          listEl.appendChild(actionsBar);
+
+          if (window.innerWidth >= 768) {
+            actionsBar.classList.remove('hidden');
+            // Default-Auswahl: erster Ordner, falls keiner gesetzt
+            if (!currentFolderInModal && folders.length) currentFolderInModal = folders[0].name;
+            const delWrap = actionsBar.querySelector('#docs-delete-wrap');
+            const delBtn = actionsBar.querySelector('#docs-delete-btn');
+            const confirmSpan = actionsBar.querySelector('#docs-confirm-text');
+            let confirmMode = false;
+            delBtn?.addEventListener('click', async ()=>{
+              if (!confirmMode){
+                confirmMode = true;
+                confirmSpan?.classList.remove('hidden');
+                delWrap?.classList.add('justify-between');
+                if (delBtn){ delBtn.className = 'px-3 py-2 rounded-xl bg-red-600 text-white text-sm transition-all'; }
+                return;
+              }
+              const folder = currentFolderInModal || (folders[0]?.name || null);
+              if (!folder) return;
+              try{
+                delBtn.disabled = true;
+                const rr = await fetch('/api/folders/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: folder }) });
+                if (!rr.ok){ try{ const t = await rr.text(); console.error('Delete failed:', t); }catch{} }
+              }catch(e){ console.error(e); }
+              finally{ delBtn.disabled = false; }
+              await loadDocs();
+            });
+          }
+        }catch(e){
+          listEl.innerHTML = `<div class=\"text-red-400 text-sm\">Fehler beim Laden: ${e?.message||e}</div>`;
+        }
+      }
+      const attachBar = document.getElementById('image-attachment');
+      function renderAttachment(){
+        if (!attachBar) return;
+        if (!ocrImageKey) { attachBar.classList.add('hidden'); attachBar.innerHTML=''; return; }
+        attachBar.classList.remove('hidden');
+        attachBar.innerHTML = `<div class="truncate mr-3">Bild für Analyse: ${ocrImageKey}</div><button id=\"clear-attach\" class=\"px-2 py-0.5 rounded bg-neutral-700 text-neutral-100 text-xs\">Entfernen</button>`;
+        document.getElementById('clear-attach')?.addEventListener('click', (e)=>{ e.preventDefault(); ocrImageKey=null; renderAttachment(); });
+      }
+      // Global verfügbar für andere Module (z. B. Chat-Streaming)
+      window.renderAttachment = renderAttachment;
+
+      const btnInputDocs = document.getElementById('btn-docs-input');
+      const openPicker = ()=>{ open(); loadDocs(); };
+      btn?.addEventListener('click', openPicker);
+      btnInputDocs?.addEventListener('click', openPicker);
+      overlay?.addEventListener('click', close);
+      closeBtn?.addEventListener('click', close);
+      window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
+      submitBtn?.addEventListener('click', ()=>{
+        if (!selectedKey) return;
+        ocrImageKey = selectedKey;
+        renderAttachment();
+        close();
+      });
+    })();
+
     // Whiteboard Setup mit Farben + Text-Tool
     (function() {
       const canvas = document.getElementById('whiteboard-canvas');
@@ -207,6 +562,127 @@
             ? sketch.layers.flatMap((l)=> Array.isArray(l.strokes)? l.strokes : [])
             : [];
         const layersArr = Array.isArray(sketch?.layers) ? sketch.layers : [{ name: '', strokes: raw }];
+        // Falls eine OCR-Layer vorhanden ist, rendern wir ABSOLUTE Positionen (keine Reflow/Spalten)
+        const ocrLayers = layersArr.filter(l => /ocr/i.test(String(l?.name||'')));
+        if (ocrLayers.length){
+          ctx.save();
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+          const dpr = window.devicePixelRatio || 1;
+          const cw = canvas.width/dpr, ch = canvas.height/dpr;
+          const padX = Math.round(cw * 0.04);
+          const padY = Math.round(ch * 0.04);
+          const contentLeft = padX;
+          const contentTop = padY;
+          const contentRight = cw - padX;
+          const contentBottom = ch - padY;
+          const contentWidth = contentRight - contentLeft;
+          const contentHeight = contentBottom - contentTop;
+          const defaultPx = Math.max(10, Math.round(0.028 * cw));
+          for (const l of ocrLayers){
+            const strokes = Array.isArray(l.strokes) ? l.strokes : [];
+            for (const s of strokes){
+              if (!s) continue;
+              if (s.type === 'circle' && Array.isArray(s.center)){
+                const nx = Math.min(1, Math.max(0, Number(s.center[0])));
+                const ny = Math.min(1, Math.max(0, Number(s.center[1])));
+                const r = Math.max(0, Number(s.radius||0.05));
+                const x = Math.round(contentLeft + nx * contentWidth);
+                const y = Math.round(contentTop + ny * contentHeight);
+                const rr = Math.round(Math.min(contentWidth, contentHeight) * r);
+                const thick = Math.max(1, Math.round((Number(s.thickness)||0.002) * cw));
+                ctx.strokeStyle = String(s.color||'#ffffff');
+                ctx.lineWidth = thick;
+                ctx.beginPath();
+                ctx.arc(x, y, rr, 0, Math.PI * 2);
+                ctx.stroke();
+                continue;
+              }
+              if ((s.type === 'line' || s.type === 'path') && Array.isArray(s.points)){
+                const thick = Math.max(1, Math.round((Number(s.thickness)||0.002) * cw));
+                ctx.strokeStyle = String(s.color||'#ffffff');
+                ctx.lineWidth = thick;
+                ctx.beginPath();
+                const first = s.points[0] || [0,0];
+                ctx.moveTo(contentLeft + first[0]*contentWidth, contentTop + first[1]*contentHeight);
+                for (let i=1;i<s.points.length;i++){
+                  const p = s.points[i];
+                  ctx.lineTo(contentLeft + p[0]*contentWidth, contentTop + p[1]*contentHeight);
+                }
+                if (s.closed) ctx.closePath();
+                ctx.stroke();
+                continue;
+              }
+              if (s.type === 'rect' && Array.isArray(s.position) && Array.isArray(s.size)){
+                let x = Math.round(contentLeft + Math.min(1,Math.max(0, s.position[0])) * contentWidth);
+                let y = Math.round(contentTop + Math.min(1,Math.max(0, s.position[1])) * contentHeight);
+                let w = Math.round(Math.max(0, Math.min(1, Number(s.size[0]))) * contentWidth);
+                let h = Math.round(Math.max(0, Math.min(1, Number(s.size[1]))) * contentHeight);
+                const thick = Math.max(1, Math.round((Number(s.thickness)||0.002) * cw));
+                ctx.strokeStyle = String(s.color||'#ffffff');
+                ctx.lineWidth = thick;
+                ctx.strokeRect(x, y, w, h);
+                continue;
+              }
+              if (s.type !== 'text' || !Array.isArray(s.position)) continue;
+              const nx = Math.min(1, Math.max(0, Number(s.position[0])));
+              const ny = Math.min(1, Math.max(0, Number(s.position[1])));
+              let x = Math.round(contentLeft + nx * contentWidth);
+              let y = Math.round(contentTop + ny * contentHeight);
+              let px = Math.max(10, Math.round((Number(s.size)||0.028) * cw));
+              ctx.fillStyle = String(s.color || '#ffffff');
+              ctx.font = `600 ${px}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
+              ctx.textBaseline = 'top';
+              // Wrap/Clamp an Rändern
+              const rawLines = String(s.text||'').split(/\n+/);
+              let wrapped = [];
+              const lineHeight = () => Math.round(px * 1.18);
+              function recomputeFont(){ ctx.font = `600 ${px}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`; }
+              for (const raw of rawLines){
+                let maxWidth = contentRight - x; // verbleibende Breite nach Anchor
+                if (maxWidth < 20) { // zu nah am Rand → an linke Seite rücken
+                  x = contentLeft;
+                  maxWidth = contentRight - contentLeft;
+                }
+                let words = String(raw).split(/\s+/);
+                let line = '';
+                for (const w of words){
+                  let test = line ? line + ' ' + w : w;
+                  if (ctx.measureText(test).width > maxWidth){
+                    if (!line){
+                      // einzelnes sehr langes Wort → Schrift verkleinern bis es passt
+                      while (ctx.measureText(test).width > maxWidth && px > 10){ px = Math.max(10, Math.floor(px * 0.92)); recomputeFont(); }
+                    } else {
+                      wrapped.push(line);
+                      line = w;
+                      continue;
+                    }
+                  } else {
+                    line = test;
+                  }
+                }
+                if (line) wrapped.push(line);
+              }
+              // Wenn Zeilenbreite insgesamt kleiner als Contentbreite, aber rechts übersteht → nach links schieben
+              const maxLineWidth = Math.max(...wrapped.map(t=> ctx.measureText(t).width), 0);
+              if (x + maxLineWidth > contentRight){
+                x = Math.max(contentLeft, Math.round(contentRight - maxLineWidth));
+              }
+              // Unterkante prüfen
+              const totalH = wrapped.length * lineHeight();
+              if (y + totalH > contentBottom){
+                y = Math.max(contentTop, Math.round(contentBottom - totalH));
+              }
+              // Linke Oberkante clampen
+              if (x < contentLeft) x = contentLeft;
+              if (y < contentTop) y = contentTop;
+              // Zeichnen
+              let yy = y;
+              for (const ln of wrapped){ ctx.fillText(ln, x, yy); yy += lineHeight(); }
+            }
+          }
+          ctx.restore();
+          return; // keine weitere Reflow-Logik anwenden
+        }
         const isExamLayer = (name)=> /klausur|beispiel/i.test(String(name||''));
         const examStrokes = layersArr
           .filter(l=>isExamLayer(l.name))
@@ -217,16 +693,25 @@
           .flatMap(l=> Array.isArray(l.strokes)? l.strokes : [])
           .filter(s=> s && s.type==='text' && s.text);
         const flat = contentStrokes.sort((a,b)=> (a.position?.[1]??0) - (b.position?.[1]??0) || (a.position?.[0]??0) - (b.position?.[0]??0));
+        const hasExam = examStrokes.length > 0;
         if (!flat.length && !examStrokes.length) return;
         ctx.save();
         // Canvas leeren, damit alte Inhalte nicht überlagern
         ctx.clearRect(0,0,canvas.width,canvas.height);
         const dpr = window.devicePixelRatio || 1;
         const cw = canvas.width/dpr, ch = canvas.height/dpr;
-        const marginX = Math.round(cw*0.02), marginY = Math.round(ch*0.02);
+        // UNSICHTBARE GRENZEN für AI‑Textbereich
+        const padX = Math.round(cw * 0.04); // 4% links/rechts
+        const padY = Math.round(ch * 0.04); // 4% oben/unten
+        const contentLeft = padX;
+        const contentTop = padY;
+        const contentRight = cw - padX;
+        const contentBottom = ch - padY;
         const gap = Math.round(cw*0.028);
-        const columns = 2; // strikt 2 Spalten (rechts nur Klausurbeispiel)
-        const colWidth = (cw - marginX*2 - gap*(columns-1)) / columns;
+        const columns = hasExam ? 2 : 1; // rechte Spalte nur bei Klausurbeispiel
+        const contentWidth = contentRight - contentLeft;
+        const contentHeight = contentBottom - contentTop;
+        const colWidth = (contentWidth - gap*(columns-1)) / columns;
         // globale, konstante Schriftgröße pro Seite
         let basePx = Math.round(((flat[0]?.size||0.026) * cw) * noteScale);
         basePx = Math.max(10, Math.min(basePx, 18));
@@ -236,11 +721,11 @@
         ctx.font = `600 ${basePx}px 'Segoe Print', 'Comic Sans MS', 'Marker Felt', cursive`;
         ctx.textBaseline = 'top';
 
-        // Klausurbeispiel in zwei Bereiche zerlegen: Aufgabe + Lösung (keine Farben)
+        // Klausurbeispiel in zwei Bereiche zerlegen: Aufgabe + Lösung (nur wenn vorhanden)
         function isQuestion(s){ const t = String(s.text||''); return /^\s*aufgabe\b/i.test(t); }
         function isSolution(s){ const t = String(s.text||''); return /^\s*l(ö|oe)sung\b/i.test(t) || /rechenweg/i.test(t); }
-        const examQ = examStrokes.filter(isQuestion);
-        const examS = examStrokes.filter(isSolution);
+        const examQ = hasExam ? examStrokes.filter(isQuestion) : [];
+        const examS = hasExam ? examStrokes.filter(isSolution) : [];
         function wrapSection(strokes){
           const lines = [];
           for(const s of strokes){
@@ -260,20 +745,17 @@
           while(lines.length && lines[lines.length-1]==='\u200B'){ lines.pop(); }
           return lines;
         }
-        let examQWrapped = wrapSection(examQ);
-        let examSWrapped = wrapSection(examS);
-        if (!examQWrapped.length && !examSWrapped.length && examStrokes.length){
-          // Falls keine Überschriften vorhanden, behandle gesamten Inhalt als Lösung
+        let examQWrapped = hasExam ? wrapSection(examQ) : [];
+        let examSWrapped = hasExam ? wrapSection(examS) : [];
+        if (hasExam && !examQWrapped.length && !examSWrapped.length){
           examSWrapped = wrapSection(examStrokes);
         }
-        if (!examQWrapped.length) examQWrapped = ['Aufgabe:'];
-        if (!examSWrapped.length) examSWrapped = ['Lösung:'];
-        const examBlockLines = [...examQWrapped, '\u200B', ...examSWrapped];
-        const examBlockH = examBlockLines.length ? (examBlockLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
+        const examAllLines = hasExam ? [...examQWrapped, ...examSWrapped] : [];
+        const examBlockH = examAllLines.length ? (examAllLines.reduce((acc,ln)=> acc + (ln==='\u200B'? 0.6 : 1), 0)*lineH + paraGap*2) : 0;
 
         let col = 0; // nur linke Spalte für Infos
-        let cursorX = marginX;
-        let cursorY = marginY;
+        let cursorX = contentLeft;
+        let cursorY = contentTop;
 
         function wrapLines(text){
           const out = [];
@@ -300,7 +782,7 @@
           for(const ln of lines){ blockLines += (ln==='\u200B') ? 0.5 : 1; }
           const blockH = blockLines*lineH + paraGap;
           // Spaltenwechsel falls nötig (kein Schrumpfen mehr)
-          const columnBottom = (ch - marginY);
+          const columnBottom = contentBottom;
           if (cursorY + blockH > columnBottom){
             // Keine rechte Spalte für Content – Infos bleiben links
             break;
@@ -316,31 +798,33 @@
         }
 
         // Klausurbeispiel rechts: oben Aufgabe, unten Lösung, mit großem Abstand dazwischen
-        const xRight = marginX + (colWidth + gap);
-        const topTaskStart = marginY;                      // oben rechts
-        const taskRegionH = Math.round(ch * 0.34);         // ~ oberes Drittel
-        const regionGap = Math.round(paraGap * 3);         // klarer Abstand
-        const solStart = topTaskStart + taskRegionH + regionGap; // Lösung unten
-        const solRegionH = (ch - marginY) - solStart;      // Resthöhe
+        if (hasExam) {
+          const xRight = contentLeft + (colWidth + gap);
+          const topTaskStart = contentTop;                      // oben rechts
+          const taskRegionH = Math.round(contentHeight * 0.34); // ~ oberes Drittel
+          const regionGap = Math.round(paraGap * 3);            // klarer Abstand
+          const solStart = topTaskStart + taskRegionH + regionGap; // Lösung unten
+          const solRegionH = contentBottom - solStart;          // Resthöhe
 
-        // Aufgabe zeichnen
-        let yTask = topTaskStart;
-        for (const ln of examQWrapped){
-          if (ln==='\u200B'){ yTask += Math.round(paraGap*0.8); continue; }
-          if (yTask + lineH > topTaskStart + taskRegionH) break; // Region nicht überfüllen
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(ln, xRight, yTask);
-          yTask += lineH;
-        }
+          // Aufgabe zeichnen
+          let yTask = topTaskStart;
+          for (const ln of examQWrapped){
+            if (ln==='\u200B'){ yTask += Math.round(paraGap*0.8); continue; }
+            if (yTask + lineH > topTaskStart + taskRegionH) break; // Region nicht überfüllen
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(ln, xRight, yTask);
+            yTask += lineH;
+          }
 
-        // Lösung zeichnen
-        let ySol = solStart;
-        for (const ln of examSWrapped){
-          if (ln==='\u200B'){ ySol += Math.round(paraGap*0.8); continue; }
-          if (ySol + lineH > solStart + solRegionH) break;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(ln, xRight, ySol);
-          ySol += lineH;
+          // Lösung zeichnen
+          let ySol = solStart;
+          for (const ln of examSWrapped){
+            if (ln==='\u200B'){ ySol += Math.round(paraGap*0.8); continue; }
+            if (ySol + lineH > solStart + solRegionH) break;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(ln, xRight, ySol);
+            ySol += lineH;
+          }
         }
         ctx.fillStyle = '#ffffff';
         ctx.restore();
@@ -429,10 +913,16 @@
       const container = document.createElement('div');
       container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
       const time = formatTime(new Date());
-      const bubble = `
-        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`;
+      const widthClass = isUser ? 'max-w-[90%]' : 'max-w-[85%]';
+      const bubble = isUser
+        ? `
+        <div class=\"${widthClass}\">\n          <div class=\"text-xs text-neutral-400 mb-1 text-right\">Du</div>\n          <div class=\"bg-[#08090c] rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}</div>\n          <div class=\"mt-1 px-1 flex items-center justify-between\">\n            <button class=\"copy-btn text-[12px] text-neutral-400 hover:text-white\" title=\"Kopieren\" aria-label=\"Kopieren\">\n              <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"w-3.5 h-3.5\"><path d=\"M9 9V5a2 2 0 012-2h6a2 2 0 012 2v10a2 2 0 01-2 2h-4\"/><rect x=\"3\" y=\"7\" width=\"12\" height=\"14\" rx=\"2\"/></svg>\n            </button>\n            <div class=\"text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`
+        : `
+        <div class=\"${widthClass}\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-transparent rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\">${escapeHtml(text)}</div>\n          <div class=\"mt-1 px-1 flex items-center justify-between\">\n            <button class=\"copy-btn text-[12px] text-neutral-400 hover:text-white\" title=\"Kopieren\" aria-label=\"Kopieren\">\n              <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"w-3.5 h-3.5\"><path d=\"M9 9V5a2 2 0 012-2h6a2 2 0 012 2v10a2 2 0 01-2 2h-4\"/><rect x=\"3\" y=\"7\" width=\"12\" height=\"14\" rx=\"2\"/></svg>\n            </button>\n            <div class=\"text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`;
       container.innerHTML = bubble;
       list.appendChild(container);
+      const copyBtn = container.querySelector('.copy-btn');
+      copyBtn?.addEventListener('click', (ev)=>{ ev.preventDefault(); navigator.clipboard?.writeText(text).catch(()=>{}); });
       list.scrollTop = list.scrollHeight;
     }
 
@@ -441,10 +931,16 @@
       const container = document.createElement('div');
       container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
       const time = formatTime(new Date());
-      container.innerHTML = `
-        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1 ${isUser ? 'text-right' : ''}\">${isUser ? 'Du' : 'School AI'}</div>\n          <div class=\"${isUser ? 'bg-[#08090c]' : 'bg-neutral-800/80'} relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span>\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`;
+      const widthClass = isUser ? 'max-w-[90%]' : 'max-w-[85%]';
+      container.innerHTML = isUser
+        ? `
+        <div class=\"${widthClass}\">\n          <div class=\"text-xs text-neutral-400 mb-1 text-right\">Du</div>\n          <div class=\"bg-[#08090c] rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span></div>\n          <div class=\"mt-1 px-1 flex items-center justify-between\">\n            <button class=\"copy-btn text-[12px] text-neutral-400 hover:text-white\" title=\"Kopieren\" aria-label=\"Kopieren\">\n              <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"w-3.5 h-3.5\"><path d=\"M9 9V5a2 2 0 012-2h6a2 2 0 012 2v10a2 2 0 01-2 2h-4\"/><rect x=\"3\" y=\"7\" width=\"12\" height=\"14\" rx=\"2\"/></svg>\n            </button>\n            <div class=\"text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`
+        : `
+        <div class=\"${widthClass}\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-transparent rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span></div>\n          <div class=\"mt-1 px-1 flex items-center justify-between\">\n            <button class=\"copy-btn text-[12px] text-neutral-400 hover:text-white\" title=\"Kopieren\" aria-label=\"Kopieren\">\n              <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"w-3.5 h-3.5\"><path d=\"M9 9V5a2 2 0 012-2h6a2 2 0 012 2v10a2 2 0 01-2 2h-4\"/><rect x=\"3\" y=\"7\" width=\"12\" height=\"14\" rx=\"2\"/></svg>\n            </button>\n            <div class=\"text-[10px] text-neutral-400\">${time}</div>\n          </div>\n        </div>`;
       list.appendChild(container);
       const typed = container.querySelector('.typed');
+      const copyBtn = container.querySelector('.copy-btn');
+      copyBtn?.addEventListener('click', (ev)=>{ ev.preventDefault(); navigator.clipboard?.writeText(typed?.textContent || '').catch(()=>{}); });
       // schnelle, aber flüssige Tipp-Animation
       const maxDelay = 12; // ms pro Zeichen
       for (let i=0;i<fullText.length;i++){
@@ -457,6 +953,7 @@
     // Konversationsverlauf für Backend
     const history = [];
     let sketchMode = false;
+    let ocrImageKey = null; // ausgewähltes Bild für OCR
     const sketchBtn = document.getElementById('btn-sketch-mode');
     function updateSketchBtn(){
       if (!sketchBtn) return;
@@ -495,6 +992,9 @@
       addMessage('user', text);
       history.push({ role: 'user', content: text });
       input.value = '';
+      // Textarea zurück auf Default-Höhe
+      const ta = document.getElementById('chat-input');
+      if (ta) { ta.style.height = 'auto'; ta.style.height = '56px'; }
       input.focus();
 
       // Sketch-Entscheidung: expliziter Toggle oder Slash-Command /sketch
@@ -505,7 +1005,7 @@
         const loading = document.createElement('div');
         loading.className = 'flex gap-3 justify-start px-1';
         loading.innerHTML = `
-          <div class=\"max-w-[85%]\">\n            <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n            <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100\">Skizze wird erstellt…\n              <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n            </div>\n          </div>`;
+          <div class=\"max-w-[85%]\">\n            <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n            <div class=\"bg-transparent rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100\">Skizze wird erstellt…</div>\n            <div class=\"mt-1 px-1 flex items-center justify-between\">\n              <span class=\"text-[10px] text-neutral-400\">${formatTime(new Date())}</span>\n              <span class=\"inline-block h-4 w-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin\"></span>\n            </div>\n          </div>`;
         list.appendChild(loading);
         list.scrollTop = list.scrollHeight;
         try {
@@ -535,19 +1035,34 @@
       const loading = document.createElement('div');
       loading.className = 'flex gap-3 justify-start px-1';
       loading.innerHTML = `
-        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 min-w-[160px] flex items-center gap-2\">\n            <span class=\"inline-block h-4 w-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin\"></span>\n            <span class=\"text-neutral-300\">Denke nach…</span>\n            <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n          </div>\n        </div>`;
+        <div class=\"max-w-[85%]\">\n          <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n          <div class=\"bg-transparent rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100 min-w-[160px] flex items-center gap-2\">\n            <span class=\"inline-block h-4 w-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin\"></span>\n            <span class=\"text-neutral-300\">Denke nach…</span>\n          </div>\n          <div class=\"mt-1 px-1 flex items-center justify-end\">\n            <div class=\"text-[10px] text-neutral-400\">${formatTime(new Date())}</div>\n          </div>\n        </div>`;
       list.appendChild(loading);
       list.scrollTop = list.scrollHeight;
 
       try {
-        const resp = await fetch('/api/chat/stream', {
+        const wantSketch = !!ocrImageKey && window.innerWidth >= 1024; // nur Desktop zeichnet aufs Whiteboard
+        let resp = await fetch('/api/chat/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: history })
+          body: JSON.stringify({ messages: history, imageKey: ocrImageKey || undefined, ocrToSketch: wantSketch })
         });
         if (!resp.ok) {
-          const err = await resp.json().catch(()=>({error:'Serverfehler'}));
-          throw new Error(err.error || 'Serverfehler');
+          try { await resp.text(); } catch {}
+          // Fallback auf non-streaming
+          const fallback = await fetch('/api/chat', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: history, imageKey: ocrImageKey || undefined, ocrToSketch: wantSketch })
+          });
+          if (!fallback.ok) {
+            const err = await fallback.json().catch(()=>({error:'Serverfehler'}));
+            throw new Error(err.error || 'Serverfehler');
+          }
+          const data = await fallback.json();
+          loading.remove();
+          addMessage('assistant', String(data?.reply || ''));
+          history.push({ role: 'assistant', content: String(data?.reply || '') });
+          if (ocrImageKey) { ocrImageKey = null; window.renderAttachment?.(); }
+          return;
         }
         // Stream lesen und direkt anzeigen
         const reader = resp.body?.getReader();
@@ -555,33 +1070,47 @@
         loading.remove();
         let full = '';
         if (reader) {
-          const isUser = false;
-          const container = document.createElement('div');
-          container.className = `flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} px-1`;
-          const time = formatTime(new Date());
-          container.innerHTML = `
-            <div class=\"max-w-[85%]\">\n              <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n              <div class=\"bg-neutral-800/80 relative rounded-lg p-3 pr-8 pb-2 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span>\n                <div class=\"absolute bottom-1 right-2 text-[10px] text-neutral-400\">${time}</div>\n              </div>\n            </div>`;
-          list.appendChild(container);
-          const typed = container.querySelector('.typed');
+          // Chat-Blase anzeigen, wenn kein Whiteboard‑Sketch erwartet wird (Mobile)
+          let typed = null;
+          if (!wantSketch) {
+            const container = document.createElement('div');
+            container.className = 'flex gap-3 justify-start px-1';
+            const time = formatTime(new Date());
+            container.innerHTML = `<div class=\"max-w-[85%]\">\n              <div class=\"text-xs text-neutral-400 mb-1\">School AI</div>\n              <div class=\"bg-transparent rounded-lg p-3 pr-8 text-sm leading-relaxed text-neutral-100 break-words whitespace-pre-wrap\"><span class=\"typed\"></span></div>\n              <div class=\"mt-1 px-1 flex items-center justify-between\">\n                <button class=\"copy-btn text-[12px] text-neutral-400 hover:text-white\" title=\"Kopieren\" aria-label=\"Kopieren\">\n                  <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"w-3.5 h-3.5\"><path d=\"M9 9V5a2 2 0 012-2h6a2 2 0 012 2v10a2 2 0 01-2 2h-4\"/><rect x=\"3\" y=\"7\" width=\"12\" height=\"14\" rx=\"2\"/></svg>\n                </button>\n                <div class=\"text-[10px] text-neutral-400\">${time}</div>\n              </div>\n            </div>`;
+            list.appendChild(container);
+            typed = container.querySelector('.typed');
+          }
 
-          // Parallel: didaktische Skizze anfordern (ohne Text-Stream zu blockieren)
-          (async ()=>{
-            try {
-              const kres = await fetchWithRetry('/api/sketch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) }, 2, 600);
-              if (kres.ok) {
-                const data = await kres.json();
-                if (data?.sketch) window.renderAISketch?.(data.sketch);
-              }
-            } catch {}
-          })();
+          // Wenn OCR→Sketch aktiv ist, erwarte JSON‑Skizze im Stream nicht; nach dem Stream parse Antwort
 
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value);
             full += chunk;
-            typed.textContent += chunk;
+            if (typed) typed.textContent += chunk; // kein Live-Text im OCR→Sketch-Modus
             list.scrollTop = list.scrollHeight;
+          }
+          // Wenn wir im OCR→Sketch Modus (Desktop) sind, versuche JSON zu parsen und zu rendern
+          if (wantSketch) {
+            try {
+              const maybeJson = full.trim();
+              const j = JSON.parse(maybeJson);
+              if (j?.layers) {
+                window.renderAISketch?.(j);
+                // Statt Chatinhalt zeigen wir nur kurze Nachfrage
+                const msg = 'Was möchtest du besprechen?';
+                addMessage('assistant', msg);
+                history.push({ role: 'assistant', content: msg });
+                ocrImageKey = null; // nur einmal verwenden
+                renderAttachment();
+                return;
+              }
+            } catch {}
+          } else if (ocrImageKey) {
+            // Mobile: OCR-Text wurde gestreamt → Anhang aufräumen
+            ocrImageKey = null;
+            window.renderAttachment?.();
           }
           history.push({ role: 'assistant', content: full });
         }
